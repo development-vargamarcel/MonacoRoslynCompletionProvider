@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MonacoRoslynCompletionProvider.Api;
@@ -12,49 +12,73 @@ namespace MonacoRoslynCompletionProvider
     {
         public async Task<HoverInfoResult> Provide(Document document, int position, SemanticModel semanticModel)
         {
-            TypeInfo typeInfo;
             var syntaxRoot = await document.GetSyntaxRootAsync();
+            var token = syntaxRoot.FindToken(position);
+            var expressionNode = token.Parent;
 
-            var expressionNode = syntaxRoot.FindToken(position).Parent;
-            if (expressionNode is VariableDeclaratorSyntax)
+            ISymbol symbol = null;
+
+            if (expressionNode is VariableDeclaratorSyntax variableDeclarator)
             {
-                SyntaxNode childNode = expressionNode.ChildNodes()?.FirstOrDefault()?.ChildNodes()?.FirstOrDefault();
-                typeInfo = semanticModel.GetTypeInfo(childNode);
-                var location = expressionNode.GetLocation();
-                return new HoverInfoResult() { Information = typeInfo.Type.ToString(), OffsetFrom = location.SourceSpan.Start, OffsetTo = location.SourceSpan.End };
+                 symbol = semanticModel.GetDeclaredSymbol(variableDeclarator);
             }
-
-            if (expressionNode is PropertyDeclarationSyntax prop)
+            else if (expressionNode is PropertyDeclarationSyntax propertyDeclaration)
             {
-                var location = expressionNode.GetLocation();
-                return new HoverInfoResult() { Information = prop.Type.ToString(), OffsetFrom = location.SourceSpan.Start, OffsetTo = location.SourceSpan.End };
+                 symbol = semanticModel.GetDeclaredSymbol(propertyDeclaration);
             }
-
-            if (expressionNode is ParameterSyntax p)
+            else if (expressionNode is ParameterSyntax parameterSyntax)
             {
-                var location = expressionNode.GetLocation();
-                return new HoverInfoResult() { Information = p.Type.ToString(), OffsetFrom = location.SourceSpan.Start, OffsetTo = location.SourceSpan.End };
+                 symbol = semanticModel.GetDeclaredSymbol(parameterSyntax);
             }
-
-            if (expressionNode is IdentifierNameSyntax i)
+            else if (expressionNode is MethodDeclarationSyntax methodDeclaration)
             {
-                var location = expressionNode.GetLocation();
-                typeInfo = semanticModel.GetTypeInfo(i);
-                if (typeInfo.Type != null)
-                    return new HoverInfoResult() { Information = typeInfo.Type.ToString(), OffsetFrom = location.SourceSpan.Start, OffsetTo = location.SourceSpan.End };
+                 symbol = semanticModel.GetDeclaredSymbol(methodDeclaration);
             }
-
-            var symbolInfo = semanticModel.GetSymbolInfo(expressionNode);
-            if (symbolInfo.Symbol != null)
+            else if (expressionNode is ClassDeclarationSyntax classDeclaration)
             {
-                var location = expressionNode.GetLocation();
-                return new HoverInfoResult()
+                 symbol = semanticModel.GetDeclaredSymbol(classDeclaration);
+            }
+             else if (expressionNode is StructDeclarationSyntax structDeclaration)
+            {
+                 symbol = semanticModel.GetDeclaredSymbol(structDeclaration);
+            }
+             else if (expressionNode is InterfaceDeclarationSyntax interfaceDeclaration)
+            {
+                 symbol = semanticModel.GetDeclaredSymbol(interfaceDeclaration);
+            }
+             else if (expressionNode is EnumDeclarationSyntax enumDeclaration)
+            {
+                 symbol = semanticModel.GetDeclaredSymbol(enumDeclaration);
+            }
+            else
+            {
+                // Try GetSymbolInfo
+                var symbolInfo = semanticModel.GetSymbolInfo(expressionNode);
+                symbol = symbolInfo.Symbol;
+
+                // If null, maybe it is a type? e.g. "Guid" in "Guid.NewGuid()"
+                if (symbol == null && expressionNode is IdentifierNameSyntax)
                 {
-                    Information = HoverInfoBuilder.Build(symbolInfo),
-                    OffsetFrom = location.SourceSpan.Start,
-                    OffsetTo = location.SourceSpan.End
-                };
+                     var typeInfo = semanticModel.GetTypeInfo(expressionNode);
+                     symbol = typeInfo.Type;
+                }
             }
+
+            if (symbol != null)
+            {
+                var location = expressionNode.GetLocation();
+                var info = HoverInfoBuilder.Build(symbol);
+                if (!string.IsNullOrEmpty(info))
+                {
+                    return new HoverInfoResult()
+                    {
+                        Information = info,
+                        OffsetFrom = location.SourceSpan.Start,
+                        OffsetTo = location.SourceSpan.End
+                    };
+                }
+            }
+
             return null;
         }
     }
