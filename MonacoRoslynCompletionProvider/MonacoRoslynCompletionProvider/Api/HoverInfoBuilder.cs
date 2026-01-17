@@ -6,6 +6,28 @@ namespace MonacoRoslynCompletionProvider.Api
 {
     public abstract class HoverInfoBuilder
     {
+        private static readonly SymbolDisplayFormat DisplayFormat =
+            new SymbolDisplayFormat(
+                globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+                typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+                genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+                memberOptions:
+                    SymbolDisplayMemberOptions.IncludeParameters |
+                    SymbolDisplayMemberOptions.IncludeType |
+                    SymbolDisplayMemberOptions.IncludeRef |
+                    SymbolDisplayMemberOptions.IncludeModifiers |
+                    SymbolDisplayMemberOptions.IncludeAccessibility,
+                kindOptions:
+                    SymbolDisplayKindOptions.None,
+                parameterOptions:
+                    SymbolDisplayParameterOptions.IncludeName |
+                    SymbolDisplayParameterOptions.IncludeType |
+                    SymbolDisplayParameterOptions.IncludeParamsRefOut |
+                    SymbolDisplayParameterOptions.IncludeDefaultValue,
+                localOptions: SymbolDisplayLocalOptions.IncludeType,
+                miscellaneousOptions:
+                    SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+
         public static string Build(SymbolInfo symbolInfo)
         {
             if (symbolInfo.Symbol != null)
@@ -19,103 +41,14 @@ namespace MonacoRoslynCompletionProvider.Api
         {
             var sb = new StringBuilder();
 
-            if (symbol is IMethodSymbol methodsymbol)
-            {
-                sb.Append("(method) ").Append(methodsymbol.DeclaredAccessibility.ToString().ToLower()).Append(' ');
-                if (methodsymbol.IsStatic)
-                    sb.Append("static").Append(' ');
-                sb.Append(methodsymbol.Name).Append('(');
-                for (var i = 0; i < methodsymbol.Parameters.Length; i++)
-                {
-                    sb.Append(methodsymbol.Parameters[i].Type).Append(' ').Append(methodsymbol.Parameters[i].Name);
-                    if (i < (methodsymbol.Parameters.Length - 1)) sb.Append(", ");
-                }
-                sb.Append(") : ");
-                sb.Append(methodsymbol.ReturnType);
-            }
-            else if (symbol is ILocalSymbol localsymbol)
-            {
-                sb.Append("(local) ").Append(localsymbol.Name).Append(" : ");
-                if (localsymbol.IsConst)
-                    sb.Append("const").Append(' ');
-                sb.Append(localsymbol.Type);
-            }
-            else if (symbol is IFieldSymbol fieldSymbol)
-            {
-                sb.Append("(field) ").Append(fieldSymbol.Name).Append(" : ").Append(fieldSymbol.DeclaredAccessibility.ToString().ToLower()).Append(' ');
-                if (fieldSymbol.IsStatic)
-                    sb.Append("static").Append(' ');
-                if (fieldSymbol.IsReadOnly)
-                    sb.Append("readonly").Append(' ');
-                if (fieldSymbol.IsConst)
-                    sb.Append("const").Append(' ');
-                sb.Append(fieldSymbol.Type);
-            }
-            else if (symbol is IPropertySymbol propertySymbol)
-            {
-                sb.Append("(property) ").Append(propertySymbol.Name).Append(" : ").Append(propertySymbol.DeclaredAccessibility.ToString().ToLower()).Append(' ');
-                if (propertySymbol.IsStatic)
-                    sb.Append("static").Append(' ');
-                if (propertySymbol.IsReadOnly)
-                    sb.Append("readonly").Append(' ');
-                sb.Append(propertySymbol.Type);
+            sb.Append(symbol.ToDisplayString(DisplayFormat));
 
-                sb.Append(" { ");
-                if (propertySymbol.GetMethod != null) sb.Append("get; ");
-                if (propertySymbol.SetMethod != null) sb.Append("set; ");
-                sb.Append("}");
-            }
-            else if (symbol is INamedTypeSymbol typeSymbol)
+            var doc = GetDocumentation(symbol);
+            if (!string.IsNullOrEmpty(doc))
             {
-                switch (typeSymbol.TypeKind)
-                {
-                    case TypeKind.Class:
-                        sb.Append("(class) ");
-                        break;
-                    case TypeKind.Struct:
-                        sb.Append("(struct) ");
-                        break;
-                    case TypeKind.Interface:
-                        sb.Append("(interface) ");
-                        break;
-                    case TypeKind.Enum:
-                        sb.Append("(enum) ");
-                        break;
-                    case TypeKind.Delegate:
-                        sb.Append("(delegate) ");
-                        break;
-                    default:
-                        sb.Append("(type) ");
-                        break;
-                }
-
-                sb.Append(typeSymbol.DeclaredAccessibility.ToString().ToLower()).Append(' ');
-                if (typeSymbol.IsStatic)
-                    sb.Append("static").Append(' ');
-                if (typeSymbol.IsAbstract && typeSymbol.TypeKind == TypeKind.Class)
-                     sb.Append("abstract").Append(' ');
-                if (typeSymbol.IsSealed && typeSymbol.TypeKind == TypeKind.Class)
-                     sb.Append("sealed").Append(' ');
-
-                sb.Append(typeSymbol.ToDisplayString());
+                sb.Append("\n").Append(doc);
             }
-            else if (symbol is IParameterSymbol parameterSymbol)
-            {
-                sb.Append("(parameter) ").Append(parameterSymbol.Type).Append(' ').Append(parameterSymbol.Name);
-            }
-
-            if (sb.Length > 0)
-            {
-                var doc = GetDocumentation(symbol);
-                if (!string.IsNullOrEmpty(doc))
-                {
-                    sb.Append("\n").Append(doc);
-                }
-                return sb.ToString();
-            }
-
-            // Fallback for other symbols
-            return symbol.ToString();
+            return sb.ToString();
         }
 
         private static string GetDocumentation(ISymbol symbol)
@@ -123,12 +56,39 @@ namespace MonacoRoslynCompletionProvider.Api
             var xml = symbol.GetDocumentationCommentXml();
             if (string.IsNullOrEmpty(xml)) return string.Empty;
 
+            var sb = new StringBuilder();
+
+            // Helper to strip tags and normalize whitespace
+            string CleanText(string input)
+            {
+                 // Remove <c>, <code> tags but keep content?
+                 // Or just remove all tags.
+                 var noTags = Regex.Replace(input, @"<[^>]+>", " ");
+                 return Regex.Replace(noTags.Trim(), @"\s+", " ");
+            }
+
+            // Extract Summary
             var match = Regex.Match(xml, @"<summary>(.*?)<\/summary>", RegexOptions.Singleline);
             if (match.Success)
             {
-                return Regex.Replace(match.Groups[1].Value.Trim(), @"\s+", " ");
+                sb.AppendLine(CleanText(match.Groups[1].Value));
             }
-            return string.Empty;
+
+            // Extract Returns
+             match = Regex.Match(xml, @"<returns>(.*?)<\/returns>", RegexOptions.Singleline);
+            if (match.Success)
+            {
+                sb.AppendLine("Returns: " + CleanText(match.Groups[1].Value));
+            }
+
+            // Extract Remarks
+             match = Regex.Match(xml, @"<remarks>(.*?)<\/remarks>", RegexOptions.Singleline);
+            if (match.Success)
+            {
+                 sb.AppendLine("Remarks: " + CleanText(match.Groups[1].Value));
+            }
+
+            return sb.ToString().Trim();
         }
     }
 }
