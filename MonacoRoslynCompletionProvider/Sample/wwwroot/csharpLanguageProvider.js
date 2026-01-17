@@ -1,4 +1,4 @@
-﻿async function sendRequest(type, request) {
+async function sendRequest(type, request) {
     let endPoint;
     switch (type) {
         case 'complete': endPoint = '/completion/complete'; break;
@@ -11,7 +11,7 @@
 
 function registerCsharpProvider() {
 
-    var assemblies = ['.\\bin\\Debug\\net6.0\\System.Text.Json.dll'];
+    var assemblies = [];
 
     monaco.languages.registerCompletionItemProvider('csharp', {
         triggerCharacters: [".", " "],
