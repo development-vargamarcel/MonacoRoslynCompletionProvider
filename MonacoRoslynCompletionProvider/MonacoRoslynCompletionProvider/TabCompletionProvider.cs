@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Completion;
 using MonacoRoslynCompletionProvider.Api;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MonacoRoslynCompletionProvider
@@ -14,22 +15,27 @@ namespace MonacoRoslynCompletionProvider
             var completionService = CompletionService.GetService(document);
             var results = await completionService.GetCompletionsAsync(document, position);
 
-            var tabCompletionDTOs = new TabCompletionResult[results.ItemsList.Count];
-
             if (results != null)
             {
+                var tabCompletionDTOs = new TabCompletionResult[results.ItemsList.Count];
                 var suggestions = new string[results.ItemsList.Count];
 
                 for (int i = 0; i < results.ItemsList.Count; i++)
                 {
-                    var itemDescription = await completionService.GetDescriptionAsync(document, results.ItemsList[i]);
+                    var item = results.ItemsList[i];
+                    var itemDescription = await completionService.GetDescriptionAsync(document, item);
 
                     var dto = new TabCompletionResult();
-                    dto.Suggestion = results.ItemsList[i].DisplayText;
+                    dto.Suggestion = item.DisplayText;
                     dto.Description = itemDescription.Text;
 
+                    if (item.Tags != null && item.Tags.Length > 0)
+                    {
+                         dto.Tag = item.Tags[0];
+                    }
+
                     tabCompletionDTOs[i] = dto;
-                    suggestions[i] = results.ItemsList[i].DisplayText;
+                    suggestions[i] = item.DisplayText;
                 }
 
                 return tabCompletionDTOs;

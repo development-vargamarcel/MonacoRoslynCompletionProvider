@@ -1,4 +1,4 @@
-﻿namespace MonacoRoslynCompletionProvider.Api
+namespace MonacoRoslynCompletionProvider.Api
 {
     public class TabCompletionResult : IResponse
     {
@@ -7,5 +7,7 @@
         public virtual string Suggestion { get; set; }
 
         public virtual string Description { get; set; }
+
+        public virtual string Tag { get; set; }
     }
 }
