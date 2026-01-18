@@ -1,8 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Emit;
 using MonacoRoslynCompletionProvider.Api;
-//using MonacoRoslynCompletionProvider.RoslynPad;
-//using RoslynPad.Roslyn.QuickInfo;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,41 +12,31 @@ namespace MonacoRoslynCompletionProvider
         public SemanticModel SemanticModel { get; }
         public EmitResult EmitResult { get; }
 
-        //private QuickInfoProvider quickInfoProvider;
-
         internal CompletionDocument(Document document, SemanticModel semanticModel, EmitResult emitResult)
         {
             Document = document;
             SemanticModel = semanticModel;
             EmitResult = emitResult;
-
-            //this.quickInfoProvider = new QuickInfoProvider(new DeferredQuickInfoContentProvider());
         }
 
         public Task<HoverInfoResult> GetHoverInformation(int position, CancellationToken cancellationToken)
         {
-            //var info = await quickInfoProvider.GetItemAsync(document, position, cancellationToken);
-            //return new HoverInfoResult() { Information = info.Create().ToString() };
-            var hoverInformationProvider = new HoverInformationProvider();
-            return hoverInformationProvider.Provide(Document, position, SemanticModel);
+            return HoverInformationProvider.Provide(Document, position, SemanticModel);
         }
 
         public Task<TabCompletionResult[]> GetTabCompletion(int position, CancellationToken cancellationToken)
         {
-            var tabCompletionProvider = new TabCompletionProvider();
-            return tabCompletionProvider.Provide(Document, position);
+            return TabCompletionProvider.Provide(Document, position);
         }
 
         public async Task<CodeCheckResult[]> GetCodeCheckResults(CancellationToken cancellationToken)
         {
-            var codeCheckProvider = new CodeCheckProvider();
-            return await codeCheckProvider.Provide(EmitResult, Document, cancellationToken);
+            return await CodeCheckProvider.Provide(EmitResult, Document, cancellationToken);
         }
 
         public Task<SignatureHelpResult> GetSignatureHelp(int position, CancellationToken cancellationToken)
         {
-            var signatureHelpProvider = new SignatureHelpProvider();
-            return signatureHelpProvider.Provide(Document, position, SemanticModel);
+            return SignatureHelpProvider.Provide(Document, position, SemanticModel);
         }
     }
 }

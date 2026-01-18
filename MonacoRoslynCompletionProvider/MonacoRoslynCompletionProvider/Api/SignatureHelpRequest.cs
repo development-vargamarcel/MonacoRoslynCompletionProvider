@@ -1,6 +1,6 @@
 ﻿namespace MonacoRoslynCompletionProvider.Api
 {
-    public class SignatureHelpRequest : IRequest
+    public class SignatureHelpRequest : IRequestWithPosition
     {
         public SignatureHelpRequest()
         { }

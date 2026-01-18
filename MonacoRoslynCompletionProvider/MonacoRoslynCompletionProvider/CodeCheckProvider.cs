@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Emit;
 using MonacoRoslynCompletionProvider.Api;
 using System.Collections.Generic;
@@ -9,11 +9,7 @@ namespace MonacoRoslynCompletionProvider
 {
     public class CodeCheckProvider
     {
-        public CodeCheckProvider()
-        {
-        }
-
-        public async Task<CodeCheckResult[]> Provide(EmitResult emitResult, Document document, CancellationToken cancellationToken)
+        public static async Task<CodeCheckResult[]> Provide(EmitResult emitResult, Document document, CancellationToken cancellationToken)
         {
             var result = new List<CodeCheckResult>();
             foreach(var r in emitResult.Diagnostics)

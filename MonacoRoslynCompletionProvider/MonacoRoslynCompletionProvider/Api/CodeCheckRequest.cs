@@ -1,6 +1,6 @@
 ﻿namespace MonacoRoslynCompletionProvider.Api
 {
-    public class CodeCheckRequest : IRequest
+    public class CodeCheckRequest : IRequestWithCode
     {
         public CodeCheckRequest()
         { }

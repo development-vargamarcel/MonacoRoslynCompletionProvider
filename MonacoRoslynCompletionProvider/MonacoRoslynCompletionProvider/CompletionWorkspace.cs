@@ -5,38 +5,17 @@ using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using System.Xml;
 
 namespace MonacoRoslynCompletionProvider
 {
     public class CompletionWorkspace
     {
-        public static MetadataReference[] DefaultMetadataReferences = new MetadataReference[]
-            {
-                MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
-                MetadataReference.CreateFromFile(Assembly.Load("System.Runtime").Location),
-                MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(int).Assembly.Location),
-                MetadataReference.CreateFromFile(Assembly.Load("netstandard").Location),
-                MetadataReference.CreateFromFile(typeof(DescriptionAttribute).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(Dictionary<,>).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(DataSet).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(XmlDocument).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(INotifyPropertyChanged).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(System.Linq.Expressions.Expression).Assembly.Location)
-            };
-
         private Project _project;
         private AdhocWorkspace _workspace;
-        private List<MetadataReference> _metadataReferences;
 
         private static readonly ConcurrentDictionary<string, CompletionWorkspace> _cache = new ConcurrentDictionary<string, CompletionWorkspace>();
         private static readonly Microsoft.CodeAnalysis.Host.HostServices _host;
@@ -63,7 +42,7 @@ namespace MonacoRoslynCompletionProvider
         {
             var workspace = new AdhocWorkspace(_host);
 
-            var references = DefaultMetadataReferences.ToList();
+            var references = MetadataReferenceProvider.DefaultMetadataReferences.ToList();
 
             if (assemblies != null && assemblies.Length > 0)
             {
@@ -75,27 +54,28 @@ namespace MonacoRoslynCompletionProvider
 
             var projectInfo = ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(), "TempProject", "TempProject", LanguageNames.CSharp)
                 .WithMetadataReferences(references)
-                .WithParseOptions(new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.Diagnose));
+                .WithParseOptions(new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.Diagnose))
+                .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
             var project = workspace.AddProject(projectInfo);
 
-
-            return new CompletionWorkspace() { _workspace = workspace, _project = project, _metadataReferences = references };
+            return new CompletionWorkspace() { _workspace = workspace, _project = project };
         }
 
         public async Task<CompletionDocument> CreateDocument(string code, OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary)
         {
             var project = _workspace.CurrentSolution.GetProject(_project.Id);
-            var document = project.AddDocument("MyFile.cs", SourceText.From(code));
-            var st = await document.GetSyntaxTreeAsync();
-            var compilation =
-            CSharpCompilation
-                .Create("Temp",
-                    new[] { st },
-                    options: new CSharpCompilationOptions(outputKind),
-                    references: _metadataReferences
-                );
 
-            using(var temp = new MemoryStream())
+            // Ensure compilation options match the requested output kind
+            if (project.CompilationOptions.OutputKind != outputKind)
+            {
+                project = project.WithCompilationOptions(project.CompilationOptions.WithOutputKind(outputKind));
+            }
+
+            var document = project.AddDocument("MyFile.cs", SourceText.From(code));
+            var compilation = await document.Project.GetCompilationAsync();
+            var st = await document.GetSyntaxTreeAsync();
+
+            using (var temp = new MemoryStream())
             {
                 var result = compilation.Emit(temp);
                 var semanticModel = compilation.GetSemanticModel(st, true);
