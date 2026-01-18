@@ -97,19 +97,29 @@ namespace ConsoleApp1
             const string code = @"using System;
 Console.WriteLine(""Hello, world!"");
 ";
-            // We need to bypass the service to test low-level Workspace behavior if we want to change OutputKind
-            // Or we just check the service's code check results, assuming it uses DynamicallyLinkedLibrary which might NOT work for top level statements unless we handle it?
-            // The original test called CreateDocument with OutputKind.ConsoleApplication.
-            // CompletionWorkspace.CreateDocument sets it if needed.
-
-            // Let's manually create workspace like the test used to do, to preserve this specific test case's intent
-            // which was verifying Roslyn behavior with OutputKind.
-
+            // Check manual creation with explicit console app
             using var ws = new CompletionWorkspace(Array.Empty<string>());
-            var document = await ws.CreateDocument(code, OutputKind.ConsoleApplication);
+            var document = await ws.CreateDocument(code, OutputKind.ConsoleApplication, includeDiagnostics: true);
             var codeCheckResults = await document.GetCodeCheckResults(CancellationToken.None);
 
-            Assert.IsTrue(codeCheckResults.All(r => r.Severity != CodeCheckSeverity.Error));
+            Assert.IsTrue(codeCheckResults.All(r => r.Severity != CodeCheckSeverity.Error), "Should not have errors for valid top-level statements");
+        }
+
+        [TestMethod]
+        public async Task CodeCheck_ShouldReturnErrors_ForInvalidCode()
+        {
+            const string code = @"using System;
+class Program {
+    void Main() {
+        Console.WriteLine(""Missing semicolon"")
+    }
+}";
+            var request = new CodeCheckRequest() { Code = code, Assemblies = Array.Empty<string>() };
+            var results = await _completionService.GetCodeCheckResults(request);
+
+            Assert.IsTrue(results.Any(r => r.Severity == CodeCheckSeverity.Error), "Should return syntax error");
+            var error = results.First(r => r.Severity == CodeCheckSeverity.Error);
+            Assert.IsTrue(error.Message.Contains(";"), "Error message should mention missing semicolon");
         }
 
         [TestMethod]

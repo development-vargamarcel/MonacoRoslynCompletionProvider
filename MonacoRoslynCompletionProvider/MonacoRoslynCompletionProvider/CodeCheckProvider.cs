@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Emit;
 using MonacoRoslynCompletionProvider.Api;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,12 +10,12 @@ namespace MonacoRoslynCompletionProvider
 {
     public static class CodeCheckProvider
     {
-        public static async Task<CodeCheckResult[]> Provide(EmitResult emitResult, Document document, CancellationToken cancellationToken)
+        public static async Task<CodeCheckResult[]> Provide(ImmutableArray<Diagnostic> diagnostics, Document document, CancellationToken cancellationToken)
         {
             var result = new List<CodeCheckResult>();
             var sourceText = await document.GetTextAsync(cancellationToken);
 
-            foreach(var r in emitResult.Diagnostics)
+            foreach(var r in diagnostics)
             {
                 var sev = r.Severity switch
                 {

@@ -2,9 +2,11 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -17,9 +19,11 @@ namespace MonacoRoslynCompletionProvider
         private readonly Project _project;
         private readonly AdhocWorkspace _workspace;
         private bool _disposed;
+        private readonly ILogger _logger;
 
         // Static host services to avoid re-initializing MefHostServices which is expensive
         private static readonly Microsoft.CodeAnalysis.Host.HostServices _host;
+        private static readonly Exception _hostInitException;
 
         static CompletionWorkspace()
         {
@@ -36,13 +40,20 @@ namespace MonacoRoslynCompletionProvider
             }
             catch (Exception ex)
             {
+                _hostInitException = ex;
                 Console.WriteLine($"Error initializing HostServices: {ex}");
-                throw;
             }
         }
 
-        public CompletionWorkspace(string[] assemblies)
+        public CompletionWorkspace(string[] assemblies, ILogger logger = null)
         {
+            _logger = logger;
+            if (_hostInitException != null)
+            {
+                _logger?.LogError(_hostInitException, "HostServices initialization failed");
+                throw new InvalidOperationException("HostServices initialization failed", _hostInitException);
+            }
+
             _workspace = new AdhocWorkspace(_host);
 
             var references = MetadataReferenceProvider.GetMetadataReferences();
@@ -57,7 +68,7 @@ namespace MonacoRoslynCompletionProvider
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Failed to load reference {assemblies[i]}: {ex.Message}");
+                        _logger?.LogWarning(ex, "Failed to load reference {Assembly}", assemblies[i]);
                     }
                 }
             }
@@ -70,7 +81,7 @@ namespace MonacoRoslynCompletionProvider
             _project = _workspace.AddProject(projectInfo);
         }
 
-        public async Task<CompletionDocument> CreateDocument(string code, OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary)
+        public async Task<CompletionDocument> CreateDocument(string code, OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary, bool includeDiagnostics = false)
         {
             if (_disposed) throw new ObjectDisposedException(nameof(CompletionWorkspace));
 
@@ -85,14 +96,15 @@ namespace MonacoRoslynCompletionProvider
             var document = project.AddDocument("MyFile.cs", SourceText.From(code ?? string.Empty));
             var compilation = await document.Project.GetCompilationAsync();
             var st = await document.GetSyntaxTreeAsync();
+            var semanticModel = compilation.GetSemanticModel(st, true);
 
-            using (var temp = new MemoryStream())
+            var diagnostics = ImmutableArray<Diagnostic>.Empty;
+            if (includeDiagnostics)
             {
-                var result = compilation.Emit(temp);
-                var semanticModel = compilation.GetSemanticModel(st, true);
-
-                return new CompletionDocument(document, semanticModel, result);
+                diagnostics = compilation.GetDiagnostics();
             }
+
+            return new CompletionDocument(document, semanticModel, diagnostics);
         }
 
         public void Dispose()

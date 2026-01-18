@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Emit;
 using MonacoRoslynCompletionProvider.Api;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,13 +11,13 @@ namespace MonacoRoslynCompletionProvider
     {
         public Document Document { get; }
         public SemanticModel SemanticModel { get; }
-        public EmitResult EmitResult { get; }
+        public ImmutableArray<Diagnostic> Diagnostics { get; }
 
-        internal CompletionDocument(Document document, SemanticModel semanticModel, EmitResult emitResult)
+        internal CompletionDocument(Document document, SemanticModel semanticModel, ImmutableArray<Diagnostic> diagnostics)
         {
             Document = document;
             SemanticModel = semanticModel;
-            EmitResult = emitResult;
+            Diagnostics = diagnostics;
         }
 
         public Task<HoverInfoResult> GetHoverInformation(int position, CancellationToken cancellationToken)
@@ -31,7 +32,7 @@ namespace MonacoRoslynCompletionProvider
 
         public async Task<CodeCheckResult[]> GetCodeCheckResults(CancellationToken cancellationToken)
         {
-            return await CodeCheckProvider.Provide(EmitResult, Document, cancellationToken);
+            return await CodeCheckProvider.Provide(Diagnostics, Document, cancellationToken);
         }
 
         public Task<SignatureHelpResult> GetSignatureHelp(int position, CancellationToken cancellationToken)
