@@ -12,7 +12,7 @@ namespace MonacoRoslynCompletionProvider
         // Thanks to https://www.strathweb.com/2018/12/using-roslyn-c-completion-service-programmatically/
         public static async Task<TabCompletionResult[]> Provide(Document document, int position)
         {
-            var completionService = CompletionService.GetService(document);
+            var completionService = Microsoft.CodeAnalysis.Completion.CompletionService.GetService(document);
             var results = await completionService.GetCompletionsAsync(document, position);
 
             if (results != null)

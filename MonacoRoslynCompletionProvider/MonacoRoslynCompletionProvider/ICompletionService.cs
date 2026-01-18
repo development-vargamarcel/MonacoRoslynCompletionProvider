@@ -1,0 +1,14 @@
+using MonacoRoslynCompletionProvider.Api;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace MonacoRoslynCompletionProvider
+{
+    public interface ICompletionService
+    {
+        Task<TabCompletionResult[]> GetTabCompletion(TabCompletionRequest request, CancellationToken cancellationToken = default);
+        Task<HoverInfoResult> GetHoverInformation(HoverInfoRequest request, CancellationToken cancellationToken = default);
+        Task<CodeCheckResult[]> GetCodeCheckResults(CodeCheckRequest request, CancellationToken cancellationToken = default);
+        Task<SignatureHelpResult> GetSignatureHelp(SignatureHelpRequest request, CancellationToken cancellationToken = default);
+    }
+}

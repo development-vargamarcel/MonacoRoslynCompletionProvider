@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
+using System;
 
 namespace Tests
 {
@@ -24,7 +25,7 @@ namespace TestNamespace {
     public class Person(string name) {
     }
 }";
-            var ws = CompletionWorkspace.Create();
+            using var ws = new CompletionWorkspace(Array.Empty<string>());
             var document = await ws.CreateDocument(code);
             var syntaxTree = await document.Document.GetSyntaxTreeAsync();
             var semanticModel = document.SemanticModel;
@@ -58,7 +59,7 @@ namespace TestNamespace {
         public bool Do(int id) => true;
     }
 }";
-            var ws = CompletionWorkspace.Create();
+            using var ws = new CompletionWorkspace(Array.Empty<string>());
             var document = await ws.CreateDocument(code);
             var syntaxTree = await document.Document.GetSyntaxTreeAsync();
             var semanticModel = document.SemanticModel;

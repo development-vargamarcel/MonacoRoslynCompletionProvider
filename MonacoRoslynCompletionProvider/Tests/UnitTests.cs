@@ -6,12 +6,23 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using MonacoRoslynCompletionProvider.Api;
 using System;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Tests
 {
     [TestClass]
     public class UnitTests
     {
+        private ICompletionService _completionService;
+
+        [TestInitialize]
+        public void Setup()
+        {
+            var logger = NullLogger<CompletionService>.Instance;
+            _completionService = new CompletionService(logger);
+        }
+
         [TestMethod]
         public async Task HoverTest()
         {
@@ -35,21 +46,18 @@ namespace ConsoleApp1
         }
     }
 }";
-            var ws = CompletionWorkspace.Create();
-            var document = await ws.CreateDocument(code);
-
-            // Hover over "Main"
-            // "static void Main(string[] args)" is at some position.
-            // Let's find the position of "Main".
+            // Using service directly to get hover info
             int mainPos = code.IndexOf("Main");
-            var info = await document.GetHoverInformation(mainPos, CancellationToken.None);
+            var request = new HoverInfoRequest() { Code = code, Position = mainPos, Assemblies = Array.Empty<string>() };
+            var info = await _completionService.GetHoverInformation(request);
 
             Assert.IsNotNull(info, "Hover info for Main should not be null");
             Assert.IsTrue(info.Information.Contains("private static void Main"));
 
             // Hover over "Console"
             int consolePos = code.IndexOf("Console.");
-            var info2 = await document.GetHoverInformation(consolePos, CancellationToken.None);
+            var request2 = new HoverInfoRequest() { Code = code, Position = consolePos, Assemblies = Array.Empty<string>() };
+            var info2 = await _completionService.GetHoverInformation(request2);
 
             Assert.IsNotNull(info2, "Hover info for Console should not be null");
             Assert.IsTrue(info2.Information.Contains("System.Console"));
@@ -72,8 +80,8 @@ namespace ConsoleApp1
 }";
             int pos = code.IndexOf("Console.") + "Console.".Length;
 
-            var request = new TabCompletionRequest(code, pos, new string[] {});
-            var results = await CompletionRequestHandler.Handle(request);
+            var request = new TabCompletionRequest() { Code = code, Position = pos, Assemblies = Array.Empty<string>() };
+            var results = await _completionService.GetTabCompletion(request);
 
             Assert.IsTrue(results.Length > 0);
 
@@ -89,12 +97,34 @@ namespace ConsoleApp1
             const string code = @"using System;
 Console.WriteLine(""Hello, world!"");
 ";
+            // We need to bypass the service to test low-level Workspace behavior if we want to change OutputKind
+            // Or we just check the service's code check results, assuming it uses DynamicallyLinkedLibrary which might NOT work for top level statements unless we handle it?
+            // The original test called CreateDocument with OutputKind.ConsoleApplication.
+            // CompletionWorkspace.CreateDocument sets it if needed.
 
-            var ws = CompletionWorkspace.Create();
+            // Let's manually create workspace like the test used to do, to preserve this specific test case's intent
+            // which was verifying Roslyn behavior with OutputKind.
+
+            using var ws = new CompletionWorkspace(Array.Empty<string>());
             var document = await ws.CreateDocument(code, OutputKind.ConsoleApplication);
             var codeCheckResults = await document.GetCodeCheckResults(CancellationToken.None);
 
             Assert.IsTrue(codeCheckResults.All(r => r.Severity != CodeCheckSeverity.Error));
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public async Task ValidationTest_NegativePosition()
+        {
+             var request = new TabCompletionRequest() { Code = "class A {}", Position = -1 };
+             await _completionService.GetTabCompletion(request);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentNullException))]
+        public async Task ValidationTest_NullRequest()
+        {
+             await _completionService.GetTabCompletion(null);
         }
     }
 }
