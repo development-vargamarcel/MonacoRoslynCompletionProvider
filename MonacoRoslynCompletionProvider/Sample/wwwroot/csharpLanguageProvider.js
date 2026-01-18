@@ -6,7 +6,12 @@ async function sendRequest(type, request) {
         case 'hover': endPoint = '/completion/hover'; break;
         case 'codeCheck': endPoint = '/completion/codeCheck'; break;
     }
-    return await axios.post(endPoint, JSON.stringify(request))
+    try {
+        return await axios.post(endPoint, JSON.stringify(request));
+    } catch (error) {
+        console.warn(`Failed to perform request: ${type}`, error);
+        return null;
+    }
 }
 
 function registerCsharpProvider() {
@@ -26,42 +31,44 @@ function registerCsharpProvider() {
 
             let resultQ = await sendRequest("complete", request);
 
-            for (let elem of resultQ.data) {
-                let kind = monaco.languages.CompletionItemKind.Function;
-                if (elem.Tag) {
-                    switch (elem.Tag) {
-                        case 'Class': kind = monaco.languages.CompletionItemKind.Class; break;
-                        case 'Delegate': kind = monaco.languages.CompletionItemKind.Function; break;
-                        case 'Enum': kind = monaco.languages.CompletionItemKind.Enum; break;
-                        case 'EnumMember': kind = monaco.languages.CompletionItemKind.EnumMember; break;
-                        case 'Event': kind = monaco.languages.CompletionItemKind.Event; break;
-                        case 'ExtensionMethod': kind = monaco.languages.CompletionItemKind.Method; break;
-                        case 'Field': kind = monaco.languages.CompletionItemKind.Field; break;
-                        case 'Interface': kind = monaco.languages.CompletionItemKind.Interface; break;
-                        case 'Keyword': kind = monaco.languages.CompletionItemKind.Keyword; break;
-                        case 'Local': kind = monaco.languages.CompletionItemKind.Variable; break;
-                        case 'Method': kind = monaco.languages.CompletionItemKind.Method; break;
-                        case 'Module': kind = monaco.languages.CompletionItemKind.Module; break;
-                        case 'Namespace': kind = monaco.languages.CompletionItemKind.Module; break;
-                        case 'Operator': kind = monaco.languages.CompletionItemKind.Operator; break;
-                        case 'Parameter': kind = monaco.languages.CompletionItemKind.Variable; break;
-                        case 'Property': kind = monaco.languages.CompletionItemKind.Property; break;
-                        case 'RangeVariable': kind = monaco.languages.CompletionItemKind.Variable; break;
-                        case 'Reference': kind = monaco.languages.CompletionItemKind.Reference; break;
-                        case 'Structure': kind = monaco.languages.CompletionItemKind.Struct; break;
-                        case 'TypeParameter': kind = monaco.languages.CompletionItemKind.TypeParameter; break;
-                        case 'Snippet': kind = monaco.languages.CompletionItemKind.Snippet; break;
-                        case 'Constant': kind = monaco.languages.CompletionItemKind.Constant; break;
+            if (resultQ && resultQ.data) {
+                for (let elem of resultQ.data) {
+                    let kind = monaco.languages.CompletionItemKind.Function;
+                    if (elem.Tag) {
+                        switch (elem.Tag) {
+                            case 'Class': kind = monaco.languages.CompletionItemKind.Class; break;
+                            case 'Delegate': kind = monaco.languages.CompletionItemKind.Function; break;
+                            case 'Enum': kind = monaco.languages.CompletionItemKind.Enum; break;
+                            case 'EnumMember': kind = monaco.languages.CompletionItemKind.EnumMember; break;
+                            case 'Event': kind = monaco.languages.CompletionItemKind.Event; break;
+                            case 'ExtensionMethod': kind = monaco.languages.CompletionItemKind.Method; break;
+                            case 'Field': kind = monaco.languages.CompletionItemKind.Field; break;
+                            case 'Interface': kind = monaco.languages.CompletionItemKind.Interface; break;
+                            case 'Keyword': kind = monaco.languages.CompletionItemKind.Keyword; break;
+                            case 'Local': kind = monaco.languages.CompletionItemKind.Variable; break;
+                            case 'Method': kind = monaco.languages.CompletionItemKind.Method; break;
+                            case 'Module': kind = monaco.languages.CompletionItemKind.Module; break;
+                            case 'Namespace': kind = monaco.languages.CompletionItemKind.Module; break;
+                            case 'Operator': kind = monaco.languages.CompletionItemKind.Operator; break;
+                            case 'Parameter': kind = monaco.languages.CompletionItemKind.Variable; break;
+                            case 'Property': kind = monaco.languages.CompletionItemKind.Property; break;
+                            case 'RangeVariable': kind = monaco.languages.CompletionItemKind.Variable; break;
+                            case 'Reference': kind = monaco.languages.CompletionItemKind.Reference; break;
+                            case 'Structure': kind = monaco.languages.CompletionItemKind.Struct; break;
+                            case 'TypeParameter': kind = monaco.languages.CompletionItemKind.TypeParameter; break;
+                            case 'Snippet': kind = monaco.languages.CompletionItemKind.Snippet; break;
+                            case 'Constant': kind = monaco.languages.CompletionItemKind.Constant; break;
+                        }
                     }
+                    suggestions.push({
+                        label: {
+                            label: elem.Suggestion,
+                            description: elem.Description
+                        },
+                        kind: kind,
+                        insertText: elem.Suggestion
+                    });
                 }
-                suggestions.push({
-                    label: {
-                        label: elem.Suggestion,
-                        description: elem.Description
-                    },
-                    kind: kind,
-                    insertText: elem.Suggestion
-                });
             }
 
             return { suggestions: suggestions };
@@ -81,7 +88,7 @@ function registerCsharpProvider() {
             }
 
             let resultQ = await sendRequest("signature", request);
-            if (!resultQ.data) return;
+            if (!resultQ || !resultQ.data) return;
 
             let signatures = [];
             for (let signature of resultQ.data.Signatures) {
@@ -124,7 +131,7 @@ function registerCsharpProvider() {
 
             let resultQ = await sendRequest("hover", request);
 
-            if (resultQ.data) {
+            if (resultQ && resultQ.data) {
                 posStart = model.getPositionAt(resultQ.data.OffsetFrom);
                 posEnd = model.getPositionAt(resultQ.data.OffsetTo);
 
@@ -150,23 +157,25 @@ function registerCsharpProvider() {
 
             let resultQ = await sendRequest("codeCheck", request)
 
-            let markers = [];
+            if (resultQ && resultQ.data) {
+                let markers = [];
 
-            for (let elem of resultQ.data) {
-                posStart = model.getPositionAt(elem.OffsetFrom);
-                posEnd = model.getPositionAt(elem.OffsetTo);
-                markers.push({
-                    severity: elem.Severity,
-                    startLineNumber: posStart.lineNumber,
-                    startColumn: posStart.column,
-                    endLineNumber: posEnd.lineNumber,
-                    endColumn: posEnd.column,
-                    message: elem.Message,
-                    code: elem.Id
-                });
+                for (let elem of resultQ.data) {
+                    posStart = model.getPositionAt(elem.OffsetFrom);
+                    posEnd = model.getPositionAt(elem.OffsetTo);
+                    markers.push({
+                        severity: elem.Severity,
+                        startLineNumber: posStart.lineNumber,
+                        startColumn: posStart.column,
+                        endLineNumber: posEnd.lineNumber,
+                        endColumn: posEnd.column,
+                        message: elem.Message,
+                        code: elem.Id
+                    });
+                }
+
+                monaco.editor.setModelMarkers(model, 'csharp', markers);
             }
-
-            monaco.editor.setModelMarkers(model, 'csharp', markers);
         }
 
         var handle = null;
@@ -177,54 +186,5 @@ function registerCsharpProvider() {
         });
         validate();
     });
-
-    /*monaco.languages.registerInlayHintsProvider('csharp', {
-        displayName: 'test',
-        provideInlayHints(model, range, token) {
-            return {
-                hints: [
-                    {
-                        label: "Test",
-                        tooltip: "Tooltip",
-                        position: { lineNumber: 3, column: 2},
-                        kind: 2
-                    }
-                ],
-                dispose: () => { }
-            };
-        }
-
-    });*/
-
-    /*monaco.languages.registerCodeActionProvider("csharp", {
-        provideCodeActions: async (model, range, context, token) => {
-            const actions = context.markers.map(error => {
-                console.log(context, error);
-                return {
-                    title: `Example quick fix`,
-                    diagnostics: [error],
-                    kind: "quickfix",
-                    edit: {
-                        edits: [
-                            {
-                                resource: model.uri,
-                                edits: [
-                                    {
-                                        range: error,
-                                        text: "This text replaces the text with the error"
-                                    }
-                                ]
-                            }
-                        ]
-                    },
-                    isPreferred: true
-                };
-            });
-            return {
-                actions: actions,
-                dispose: () => { }
-            }
-        }
-    });*/
 
 }
