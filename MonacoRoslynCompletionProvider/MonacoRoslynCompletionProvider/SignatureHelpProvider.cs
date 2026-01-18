@@ -10,7 +10,7 @@ namespace MonacoRoslynCompletionProvider
 {
     internal class SignatureHelpProvider
     {
-        public async Task<SignatureHelpResult> Provide(Document document, int position, SemanticModel semanticModel)
+        public static async Task<SignatureHelpResult> Provide(Document document, int position, SemanticModel semanticModel)
         {
             var invocation = await InvocationContext.GetInvocation(document, position);
             if (invocation == null) return null;
@@ -92,7 +92,7 @@ namespace MonacoRoslynCompletionProvider
             return signature;
         }
 
-        private int InvocationScore(IMethodSymbol symbol, IEnumerable<TypeInfo> types)
+        private static int InvocationScore(IMethodSymbol symbol, IEnumerable<TypeInfo> types)
         {
             var parameters = symbol.Parameters;
             if (parameters.Count() < types.Count())

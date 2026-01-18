@@ -10,7 +10,7 @@ namespace MonacoRoslynCompletionProvider
 {
     internal class HoverInformationProvider
     {
-        public async Task<HoverInfoResult> Provide(Document document, int position, SemanticModel semanticModel)
+        public static async Task<HoverInfoResult> Provide(Document document, int position, SemanticModel semanticModel)
         {
             var syntaxRoot = await document.GetSyntaxRootAsync();
             var token = syntaxRoot.FindToken(position);

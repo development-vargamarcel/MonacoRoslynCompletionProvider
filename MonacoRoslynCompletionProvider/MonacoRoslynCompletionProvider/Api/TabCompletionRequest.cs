@@ -1,6 +1,6 @@
 ﻿namespace MonacoRoslynCompletionProvider.Api
 {
-    public class TabCompletionRequest : IRequest
+    public class TabCompletionRequest : IRequestWithPosition
     {
         public TabCompletionRequest()
         { }
