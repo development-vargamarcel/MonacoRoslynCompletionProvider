@@ -1,6 +1,8 @@
 using Microsoft.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using System.Linq;
 
 namespace MonacoRoslynCompletionProvider.Api
 {
@@ -41,12 +43,14 @@ namespace MonacoRoslynCompletionProvider.Api
         {
             var sb = new StringBuilder();
 
-            sb.Append(symbol.ToDisplayString(DisplayFormat));
+            sb.AppendLine("```csharp");
+            sb.AppendLine(symbol.ToDisplayString(DisplayFormat));
+            sb.AppendLine("```");
 
             var doc = GetDocumentation(symbol);
             if (!string.IsNullOrEmpty(doc))
             {
-                sb.Append("\n").Append(doc);
+                sb.Append(doc);
             }
             return sb.ToString();
         }
@@ -56,39 +60,64 @@ namespace MonacoRoslynCompletionProvider.Api
             var xml = symbol.GetDocumentationCommentXml();
             if (string.IsNullOrEmpty(xml)) return string.Empty;
 
-            var sb = new StringBuilder();
-
-            // Helper to strip tags and normalize whitespace
-            string CleanText(string input)
+            try
             {
-                 // Remove <c>, <code> tags but keep content?
-                 // Or just remove all tags.
-                 var noTags = Regex.Replace(input, @"<[^>]+>", " ");
-                 return Regex.Replace(noTags.Trim(), @"\s+", " ");
-            }
+                var sb = new StringBuilder();
+                // Wrap in root to ensure single root element
+                var xdoc = XDocument.Parse("<root>" + xml + "</root>");
 
-            // Extract Summary
-            var match = Regex.Match(xml, @"<summary>(.*?)<\/summary>", RegexOptions.Singleline);
-            if (match.Success)
+                string GetText(XElement element)
+                {
+                    if (element == null) return null;
+                    return Regex.Replace(element.Value, @"\s+", " ").Trim();
+                }
+
+                var summary = GetText(xdoc.Descendants("summary").FirstOrDefault());
+                if (!string.IsNullOrEmpty(summary))
+                {
+                    sb.AppendLine("**Summary**");
+                    sb.AppendLine(summary);
+                    sb.AppendLine();
+                }
+
+                var paramsElements = xdoc.Descendants("param");
+                if (paramsElements.Any())
+                {
+                     sb.AppendLine("**Parameters**");
+                     foreach(var param in paramsElements)
+                     {
+                         var name = param.Attribute("name")?.Value;
+                         var desc = GetText(param);
+                         if (!string.IsNullOrEmpty(name))
+                         {
+                             sb.AppendLine($"- `{name}`: {desc}");
+                         }
+                     }
+                     sb.AppendLine();
+                }
+
+                var returns = GetText(xdoc.Descendants("returns").FirstOrDefault());
+                if (!string.IsNullOrEmpty(returns))
+                {
+                    sb.AppendLine("**Returns**");
+                    sb.AppendLine(returns);
+                    sb.AppendLine();
+                }
+
+                var remarks = GetText(xdoc.Descendants("remarks").FirstOrDefault());
+                if (!string.IsNullOrEmpty(remarks))
+                {
+                    sb.AppendLine("**Remarks**");
+                    sb.AppendLine(remarks);
+                    sb.AppendLine();
+                }
+
+                return sb.ToString().Trim();
+            }
+            catch
             {
-                sb.AppendLine(CleanText(match.Groups[1].Value));
+                return string.Empty;
             }
-
-            // Extract Returns
-             match = Regex.Match(xml, @"<returns>(.*?)<\/returns>", RegexOptions.Singleline);
-            if (match.Success)
-            {
-                sb.AppendLine("Returns: " + CleanText(match.Groups[1].Value));
-            }
-
-            // Extract Remarks
-             match = Regex.Match(xml, @"<remarks>(.*?)<\/remarks>", RegexOptions.Singleline);
-            if (match.Success)
-            {
-                 sb.AppendLine("Remarks: " + CleanText(match.Groups[1].Value));
-            }
-
-            return sb.ToString().Trim();
         }
     }
 }

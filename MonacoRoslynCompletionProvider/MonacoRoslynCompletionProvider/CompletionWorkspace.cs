@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Text;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -37,6 +38,7 @@ namespace MonacoRoslynCompletionProvider
         private AdhocWorkspace _workspace;
         private List<MetadataReference> _metadataReferences;
 
+        private static readonly ConcurrentDictionary<string, CompletionWorkspace> _cache = new ConcurrentDictionary<string, CompletionWorkspace>();
         private static readonly Microsoft.CodeAnalysis.Host.HostServices _host;
 
         static CompletionWorkspace()
@@ -53,6 +55,12 @@ namespace MonacoRoslynCompletionProvider
 
         public static CompletionWorkspace Create(params string[] assemblies)
         {
+            var key = string.Join(";", assemblies?.OrderBy(x => x) ?? Enumerable.Empty<string>());
+            return _cache.GetOrAdd(key, _ => CreateNew(assemblies));
+        }
+
+        private static CompletionWorkspace CreateNew(string[] assemblies)
+        {
             var workspace = new AdhocWorkspace(_host);
 
             var references = DefaultMetadataReferences.ToList();
@@ -66,7 +74,8 @@ namespace MonacoRoslynCompletionProvider
             }
 
             var projectInfo = ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(), "TempProject", "TempProject", LanguageNames.CSharp)
-                .WithMetadataReferences(references);
+                .WithMetadataReferences(references)
+                .WithParseOptions(new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.Diagnose));
             var project = workspace.AddProject(projectInfo);
 
 
@@ -75,7 +84,8 @@ namespace MonacoRoslynCompletionProvider
 
         public async Task<CompletionDocument> CreateDocument(string code, OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary)
         {
-            var document = _workspace.AddDocument(_project.Id, "MyFile2.cs", SourceText.From(code));
+            var project = _workspace.CurrentSolution.GetProject(_project.Id);
+            var document = project.AddDocument("MyFile.cs", SourceText.From(code));
             var st = await document.GetSyntaxTreeAsync();
             var compilation =
             CSharpCompilation
