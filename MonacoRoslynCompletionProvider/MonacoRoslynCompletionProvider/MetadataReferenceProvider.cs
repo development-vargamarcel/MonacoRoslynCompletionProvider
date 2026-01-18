@@ -11,21 +11,50 @@ namespace MonacoRoslynCompletionProvider
 {
     public static class MetadataReferenceProvider
     {
-         public static readonly MetadataReference[] DefaultMetadataReferences = new MetadataReference[]
+        public static List<MetadataReference> GetMetadataReferences()
+        {
+            var references = new List<MetadataReference>();
+
+            // Helper to add reference safely
+            void Add(string assemblyName)
             {
-                MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
-                MetadataReference.CreateFromFile(Assembly.Load("System.Runtime").Location),
-                MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(int).Assembly.Location),
-                MetadataReference.CreateFromFile(Assembly.Load("netstandard").Location),
-                MetadataReference.CreateFromFile(typeof(DescriptionAttribute).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(Dictionary<,>).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(DataSet).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(XmlDocument).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(INotifyPropertyChanged).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(System.Linq.Expressions.Expression).Assembly.Location)
-            };
+                try
+                {
+                    references.Add(MetadataReference.CreateFromFile(Assembly.Load(assemblyName).Location));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to load metadata reference for {assemblyName}: {ex.Message}");
+                }
+            }
+
+            void AddType(Type type)
+            {
+                try
+                {
+                    references.Add(MetadataReference.CreateFromFile(type.Assembly.Location));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to load metadata reference for type {type.FullName}: {ex.Message}");
+                }
+            }
+
+            AddType(typeof(Console));
+            Add("System.Runtime");
+            AddType(typeof(List<>));
+            AddType(typeof(int));
+            Add("netstandard");
+            AddType(typeof(DescriptionAttribute));
+            AddType(typeof(object));
+            AddType(typeof(Dictionary<,>));
+            AddType(typeof(Enumerable));
+            AddType(typeof(DataSet));
+            AddType(typeof(XmlDocument));
+            AddType(typeof(INotifyPropertyChanged));
+            AddType(typeof(System.Linq.Expressions.Expression));
+
+            return references;
+        }
     }
 }

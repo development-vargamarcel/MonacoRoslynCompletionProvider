@@ -1,23 +1,55 @@
 # MonacoRoslynCompletionProvider
-Provides C# Code Completion for a Monaco Editor Component
 
-# How to run:
-	- cd Sample\wwwroot
-	- npm i
-	- cd..
-	- dotnet run
-	- open webpage in browser (normaly http://localhost:5280/index.html) but it is displayed in the console
+Provides C# intellisense (completion, hover, signature help, code check) for Monaco Editor using Roslyn.
 
-# ToDo's :
-	- Show Method Declarations
-	- Better Tooltips for Hover
-	- Completition after (, when entering a new keyword, ...
-	- More suggestions were possible
-	- Perfomance, at The Moment Everything is created for one Info and Destroyed after.
-	  It's developed in some way so parts could be reused, but it should be better
+## Features
 
-# Help :
-Use https://sharplab.io/ to view AST of C#, wich would help in development
+- **Tab Completion**: Suggestions for methods, properties, classes, keywords, etc.
+- **Hover Information**: XML documentation and signatures on hover.
+- **Signature Help**: Parameter info when typing methods.
+- **Code Check**: Live diagnostics (errors, warnings) as you type.
+- **Dynamic Compilation**: Compiles code in-memory using Roslyn.
 
-# Sample
-![image](https://user-images.githubusercontent.com/364896/140825032-1b7fecae-b3ba-434c-9a8d-c36278dccc91.png)
+## Architecture
+
+- **Core Library**: `MonacoRoslynCompletionProvider`
+    - `CompletionService`: Main entry point, manages workspaces and handles requests.
+    - `CompletionWorkspace`: Wraps Roslyn `AdhocWorkspace`.
+    - `Providers`: Specific logic for completion, hover, etc.
+- **Sample App**: `Sample` (ASP.NET Core Web API)
+    - Exposes endpoints used by the frontend.
+    - Serves the Monaco Editor frontend.
+
+## Setup
+
+1.  **Prerequisites**:
+    -   .NET 8.0 SDK
+    -   Node.js (for frontend dependencies)
+
+2.  **Frontend Setup**:
+    ```bash
+    cd MonacoRoslynCompletionProvider/Sample/wwwroot
+    npm install
+    ```
+
+3.  **Run Sample**:
+    ```bash
+    cd MonacoRoslynCompletionProvider/Sample
+    dotnet run
+    ```
+    Open `http://localhost:5280` in your browser.
+
+## Key Assumptions
+
+- The backend runs on the same machine/network as the frontend access.
+- Assemblies for reference are loaded from the machine running the backend.
+- Security: The `CompletionWorkspace` allows execution of arbitrary code during compilation (e.g. analyzers) and loads assemblies. **Do not expose this service publicly without sandboxing.**
+
+## Improvements & Refactoring
+
+Recent updates include:
+- **Service-Oriented Architecture**: Moved from static handlers to injectable `ICompletionService`.
+- **Resource Management**: Implemented `IDisposable` for workspaces.
+- **Validation**: Added input validation and error handling.
+- **Logging**: Added logging support.
+- **Testing**: Enhanced test coverage.

@@ -15,6 +15,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.13.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.13.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.13.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.2" />
   </ItemGroup>
 
   <!--<ItemGroup>

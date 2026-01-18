@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MonacoRoslynCompletionProvider.Api;
 using System;
@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace MonacoRoslynCompletionProvider
 {
-    internal class SignatureHelpProvider
+    internal static class SignatureHelpProvider
     {
         public static async Task<SignatureHelpResult> Provide(Document document, int position, SemanticModel semanticModel)
         {
@@ -24,7 +24,9 @@ namespace MonacoRoslynCompletionProvider
                 activeParameter += 1;
             }
 
-            var signaturesSet = new HashSet<Signatures>();
+            // Using a dictionary to keep track of unique signatures by label, but storing the actual object
+            // so we can reference it later for finding index.
+            var signaturesMap = new Dictionary<string, Signatures>();
             var bestScore = int.MinValue;
             Signatures bestScoredItem = null;
 
@@ -32,16 +34,20 @@ namespace MonacoRoslynCompletionProvider
             ISymbol throughSymbol = null;
             ISymbol throughType = null;
             var methodGroup = invocation.SemanticModel.GetMemberGroup(invocation.Receiver).OfType<IMethodSymbol>();
-            if (invocation.Receiver is MemberAccessExpressionSyntax)
+
+            if (invocation.Receiver is MemberAccessExpressionSyntax memberAccess)
             {
-                var throughExpression = ((MemberAccessExpressionSyntax)invocation.Receiver).Expression;
+                var throughExpression = memberAccess.Expression;
                 var typeInfo = semanticModel.GetTypeInfo(throughExpression);
                 throughSymbol = invocation.SemanticModel.GetSpeculativeSymbolInfo(invocation.Position, throughExpression, SpeculativeBindingOption.BindAsExpression).Symbol;
                 throughType = invocation.SemanticModel.GetSpeculativeTypeInfo(invocation.Position, throughExpression, SpeculativeBindingOption.BindAsTypeOrNamespace).Type;
+
                 var includeInstance = (throughSymbol != null && !(throughSymbol is ITypeSymbol)) ||
                     throughExpression is LiteralExpressionSyntax ||
                     throughExpression is TypeOfExpressionSyntax;
+
                 var includeStatic = (throughSymbol is INamedTypeSymbol) || throughType != null;
+
                 if (throughType == null)
                 {
                     throughType = typeInfo.Type;
@@ -57,21 +63,31 @@ namespace MonacoRoslynCompletionProvider
             foreach (var methodOverload in methodGroup)
             {
                 var signature = BuildSignature(methodOverload);
-                signaturesSet.Add(signature);
+
+                // If we don't have this signature yet, add it.
+                if (!signaturesMap.ContainsKey(signature.Label))
+                {
+                    signaturesMap[signature.Label] = signature;
+                }
+
+                // Use the one stored in the map (canonical instance)
+                var canonicalSignature = signaturesMap[signature.Label];
 
                 var score = InvocationScore(methodOverload, types);
                 if (score > bestScore)
                 {
                     bestScore = score;
-                    bestScoredItem = signature;
+                    bestScoredItem = canonicalSignature;
                 }
             }
 
+            var signaturesArray = signaturesMap.Values.ToArray();
+
             return new SignatureHelpResult()
             {
-                Signatures = signaturesSet.ToArray(),
+                Signatures = signaturesArray,
                 ActiveParameter = activeParameter,
-                ActiveSignature = Array.IndexOf(signaturesSet.ToArray(), bestScoredItem)
+                ActiveSignature = bestScoredItem != null ? Array.IndexOf(signaturesArray, bestScoredItem) : 0
             };
         }
 
