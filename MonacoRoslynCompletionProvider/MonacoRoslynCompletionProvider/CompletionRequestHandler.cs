@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace MonacoRoslynCompletionProvider
 {
-    public static class CompletitionRequestHandler
+    public static class CompletionRequestHandler
     {
         public async static Task<TabCompletionResult[]> Handle(TabCompletionRequest tabCompletionRequest)
         {

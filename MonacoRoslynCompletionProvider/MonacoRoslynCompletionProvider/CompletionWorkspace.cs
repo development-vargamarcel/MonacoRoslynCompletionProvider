@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Text;
@@ -37,8 +37,10 @@ namespace MonacoRoslynCompletionProvider
         private AdhocWorkspace _workspace;
         private List<MetadataReference> _metadataReferences;
 
-        public static CompletionWorkspace Create(params string[] assemblies) 
-        { 
+        private static readonly Microsoft.CodeAnalysis.Host.HostServices _host;
+
+        static CompletionWorkspace()
+        {
             Assembly[] lst = new[] {
                 Assembly.Load("Microsoft.CodeAnalysis.Workspaces"),
                 Assembly.Load("Microsoft.CodeAnalysis.CSharp.Workspaces"),
@@ -46,8 +48,12 @@ namespace MonacoRoslynCompletionProvider
                 Assembly.Load("Microsoft.CodeAnalysis.CSharp.Features")
             };
 
-            var host = MefHostServices.Create(lst);
-            var workspace = new AdhocWorkspace(host);
+            _host = MefHostServices.Create(lst);
+        }
+
+        public static CompletionWorkspace Create(params string[] assemblies)
+        {
+            var workspace = new AdhocWorkspace(_host);
 
             var references = DefaultMetadataReferences.ToList();
 
@@ -83,9 +89,9 @@ namespace MonacoRoslynCompletionProvider
             {
                 var result = compilation.Emit(temp);
                 var semanticModel = compilation.GetSemanticModel(st, true);
-                
-                return new CompletionDocument(document, semanticModel, result); 
-            }            
+
+                return new CompletionDocument(document, semanticModel, result);
+            }
         }
     }
 }

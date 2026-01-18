@@ -73,7 +73,7 @@ namespace ConsoleApp1
             int pos = code.IndexOf("Console.") + "Console.".Length;
 
             var request = new TabCompletionRequest(code, pos, new string[] {});
-            var results = await CompletitionRequestHandler.Handle(request);
+            var results = await CompletionRequestHandler.Handle(request);
 
             Assert.IsTrue(results.Length > 0);
 
