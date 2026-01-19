@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace MonacoRoslynCompletionProvider
 {
+    /// <summary>
+    /// Provides hover information for a given document and position.
+    /// </summary>
     internal static class HoverInformationProvider
     {
         public static async Task<HoverInfoResult> Provide(Document document, int position, SemanticModel semanticModel)

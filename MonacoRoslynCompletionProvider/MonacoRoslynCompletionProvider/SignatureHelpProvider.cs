@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace MonacoRoslynCompletionProvider
 {
+    /// <summary>
+    /// Provides signature help (parameter info) for a given document and position.
+    /// </summary>
     internal static class SignatureHelpProvider
     {
         public static async Task<SignatureHelpResult> Provide(Document document, int position, SemanticModel semanticModel)
@@ -24,8 +27,7 @@ namespace MonacoRoslynCompletionProvider
                 activeParameter += 1;
             }
 
-            // Using a dictionary to keep track of unique signatures by label, but storing the actual object
-            // so we can reference it later for finding index.
+            // Using a dictionary to keep track of unique signatures by label.
             var signaturesMap = new Dictionary<string, Signatures>();
             var bestScore = int.MinValue;
             Signatures bestScoredItem = null;

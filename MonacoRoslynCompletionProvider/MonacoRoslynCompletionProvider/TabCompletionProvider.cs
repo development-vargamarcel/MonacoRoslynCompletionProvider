@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace MonacoRoslynCompletionProvider
 {
+    /// <summary>
+    /// Provides tab completion results for a given document and position.
+    /// </summary>
     internal class TabCompletionProvider
     {
         // Thanks to https://www.strathweb.com/2018/12/using-roslyn-c-completion-service-programmatically/
@@ -18,8 +21,8 @@ namespace MonacoRoslynCompletionProvider
             if (results != null)
             {
                 var tabCompletionDTOs = new TabCompletionResult[results.ItemsList.Count];
-                var suggestions = new string[results.ItemsList.Count];
 
+                // Note: itemsList is used because results.Items is obsolete.
                 for (int i = 0; i < results.ItemsList.Count; i++)
                 {
                     var item = results.ItemsList[i];
@@ -35,7 +38,6 @@ namespace MonacoRoslynCompletionProvider
                     }
 
                     tabCompletionDTOs[i] = dto;
-                    suggestions[i] = item.DisplayText;
                 }
 
                 return tabCompletionDTOs;

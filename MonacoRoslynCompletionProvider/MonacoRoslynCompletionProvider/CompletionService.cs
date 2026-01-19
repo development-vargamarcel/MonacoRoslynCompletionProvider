@@ -21,60 +21,43 @@ namespace MonacoRoslynCompletionProvider
 
         public async Task<TabCompletionResult[]> GetTabCompletion(TabCompletionRequest request, CancellationToken cancellationToken = default)
         {
-            ValidateRequest(request);
-            try
-            {
-                var document = await GetDocument(request, cancellationToken);
-                return await document.GetTabCompletion(request.Position, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting tab completion");
-                throw;
-            }
+            return await ExecuteRequest(request, "TabCompletion", async (doc, token) =>
+                await doc.GetTabCompletion(request.Position, token),
+                checkPosition: true, includeDiagnostics: false, cancellationToken);
         }
 
         public async Task<HoverInfoResult> GetHoverInformation(HoverInfoRequest request, CancellationToken cancellationToken = default)
         {
-            ValidateRequest(request);
-            try
-            {
-                var document = await GetDocument(request, cancellationToken);
-                return await document.GetHoverInformation(request.Position, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting hover information");
-                throw;
-            }
+            return await ExecuteRequest(request, "HoverInformation", async (doc, token) =>
+                await doc.GetHoverInformation(request.Position, token),
+                checkPosition: true, includeDiagnostics: false, cancellationToken);
         }
 
         public async Task<CodeCheckResult[]> GetCodeCheckResults(CodeCheckRequest request, CancellationToken cancellationToken = default)
         {
-            ValidateRequest(request, checkPosition: false);
-            try
-            {
-                var document = await GetDocument(request, cancellationToken);
-                return await document.GetCodeCheckResults(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting code check results");
-                throw;
-            }
+            return await ExecuteRequest(request, "CodeCheck", async (doc, token) =>
+                await doc.GetCodeCheckResults(token),
+                checkPosition: false, includeDiagnostics: true, cancellationToken);
         }
 
         public async Task<SignatureHelpResult> GetSignatureHelp(SignatureHelpRequest request, CancellationToken cancellationToken = default)
         {
-            ValidateRequest(request);
+            return await ExecuteRequest(request, "SignatureHelp", async (doc, token) =>
+                await doc.GetSignatureHelp(request.Position, token),
+                checkPosition: true, includeDiagnostics: false, cancellationToken);
+        }
+
+        private async Task<TResult> ExecuteRequest<TResult>(IRequestWithCode request, string operationName, Func<CompletionDocument, CancellationToken, Task<TResult>> action, bool checkPosition, bool includeDiagnostics, CancellationToken cancellationToken)
+        {
+            ValidateRequest(request, checkPosition);
             try
             {
-                var document = await GetDocument(request, cancellationToken);
-                return await document.GetSignatureHelp(request.Position, cancellationToken);
+                var document = await GetDocument(request, includeDiagnostics, cancellationToken);
+                return await action(document, cancellationToken);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting signature help");
+                _logger.LogError(ex, "Error executing {OperationName}", operationName);
                 throw;
             }
         }
@@ -86,12 +69,7 @@ namespace MonacoRoslynCompletionProvider
                 throw new ArgumentNullException(nameof(request));
             }
 
-            if (string.IsNullOrEmpty(request.Code))
-            {
-                // Warn but maybe allow? No, completion on empty string might be valid (e.g. empty file).
-                // But request.Code should be the file content.
-                // _logger.LogWarning("Request code is null or empty");
-            }
+            // request.Code can be empty
 
             if (checkPosition && request is IRequestWithPosition posRequest)
             {
@@ -102,13 +80,13 @@ namespace MonacoRoslynCompletionProvider
             }
         }
 
-        private async Task<CompletionDocument> GetDocument(IRequestWithCode request, CancellationToken cancellationToken)
+        private async Task<CompletionDocument> GetDocument(IRequestWithCode request, bool includeDiagnostics, CancellationToken cancellationToken)
         {
             var key = string.Join(";", request.Assemblies?.OrderBy(x => x) ?? Enumerable.Empty<string>());
 
-            var workspace = _workspaceCache.GetOrAdd(key, _ => new CompletionWorkspace(request.Assemblies));
+            var workspace = _workspaceCache.GetOrAdd(key, _ => new CompletionWorkspace(request.Assemblies, _logger));
 
-            return await workspace.CreateDocument(request.Code);
+            return await workspace.CreateDocument(request.Code, includeDiagnostics: includeDiagnostics);
         }
     }
 }
