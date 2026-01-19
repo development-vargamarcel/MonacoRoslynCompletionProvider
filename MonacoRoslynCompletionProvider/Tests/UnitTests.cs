@@ -131,10 +131,26 @@ class Program {
         }
 
         [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public async Task ValidationTest_PositionOutOfRange()
+        {
+             var request = new TabCompletionRequest() { Code = "class A {}", Position = 100 };
+             await _completionService.GetTabCompletion(request);
+        }
+
+        [TestMethod]
         [ExpectedException(typeof(ArgumentNullException))]
         public async Task ValidationTest_NullRequest()
         {
              await _completionService.GetTabCompletion(null);
+        }
+
+        [TestMethod]
+        public async Task CompletionTest_EmptyCode()
+        {
+             var request = new TabCompletionRequest() { Code = "", Position = 0 };
+             var results = await _completionService.GetTabCompletion(request);
+             Assert.IsNotNull(results);
         }
     }
 }

@@ -45,11 +45,9 @@ Provides C# intellisense (completion, hover, signature help, code check) for Mon
 - Assemblies for reference are loaded from the machine running the backend.
 - Security: The `CompletionWorkspace` allows execution of arbitrary code during compilation (e.g. analyzers) and loads assemblies. **Do not expose this service publicly without sandboxing.**
 
-## Improvements & Refactoring
+## Recent Refactoring
 
-Recent updates include:
-- **Service-Oriented Architecture**: Moved from static handlers to injectable `ICompletionService`.
-- **Resource Management**: Implemented `IDisposable` for workspaces.
-- **Validation**: Added input validation and error handling.
-- **Logging**: Added logging support.
-- **Testing**: Enhanced test coverage.
+- **API Improvements**: Migrated to `MapPost` with typed requests and `[FromBody]`. Added global exception handling and logging.
+- **Frontend**: Updated request handling to ensure correct content types.
+- **Core Optimization**: Parallelized tab completion description fetching. Improved validation and logging.
+- **Project Structure**: Unified target framework to .NET 8.0.

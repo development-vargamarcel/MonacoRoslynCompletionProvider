@@ -1,45 +1,51 @@
+using Microsoft.AspNetCore.Mvc;
 using MonacoRoslynCompletionProvider;
 using MonacoRoslynCompletionProvider.Api;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<ICompletionService, CompletionService>();
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
 var app = builder.Build();
 
-app.MapPost("/completion/complete", async (HttpContext e, ICompletionService completionService) =>
+app.UseExceptionHandler(exceptionHandlerApp =>
 {
-    using var reader = new StreamReader(e.Request.Body);
-    string text = await reader.ReadToEndAsync();
-    var tabCompletionRequest = JsonSerializer.Deserialize<TabCompletionRequest>(text);
-    var tabCompletionResults = await completionService.GetTabCompletion(tabCompletionRequest);
-    await JsonSerializer.SerializeAsync(e.Response.Body, tabCompletionResults);
+    exceptionHandlerApp.Run(async context =>
+    {
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        var exceptionHandlerPathFeature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerPathFeature>();
+
+        if (exceptionHandlerPathFeature?.Error != null)
+        {
+            logger.LogError(exceptionHandlerPathFeature.Error, "Unhandled exception occurred.");
+        }
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred." });
+    });
 });
 
-app.MapPost("/completion/signature", async (HttpContext e, ICompletionService completionService) =>
+app.MapPost("/completion/complete", async ([FromBody] TabCompletionRequest request, ICompletionService completionService) =>
 {
-    using var reader = new StreamReader(e.Request.Body);
-    string text = await reader.ReadToEndAsync();
-    var signatureHelpRequest = JsonSerializer.Deserialize<SignatureHelpRequest>(text);
-    var signatureHelpResult = await completionService.GetSignatureHelp(signatureHelpRequest);
-    await JsonSerializer.SerializeAsync(e.Response.Body, signatureHelpResult);
+    return await completionService.GetTabCompletion(request);
 });
 
-app.MapPost("/completion/hover", async (HttpContext e, ICompletionService completionService) =>
+app.MapPost("/completion/signature", async ([FromBody] SignatureHelpRequest request, ICompletionService completionService) =>
 {
-    using var reader = new StreamReader(e.Request.Body);
-    string text = await reader.ReadToEndAsync();
-    var hoverInfoRequest = JsonSerializer.Deserialize<HoverInfoRequest>(text);
-    var hoverInfoResult = await completionService.GetHoverInformation(hoverInfoRequest);
-    await JsonSerializer.SerializeAsync(e.Response.Body, hoverInfoResult);
+    return await completionService.GetSignatureHelp(request);
 });
 
-app.MapPost("/completion/codeCheck", async (HttpContext e, ICompletionService completionService) =>
+app.MapPost("/completion/hover", async ([FromBody] HoverInfoRequest request, ICompletionService completionService) =>
 {
-    using var reader = new StreamReader(e.Request.Body);
-    string text = await reader.ReadToEndAsync();
-    var codeCheckRequest = JsonSerializer.Deserialize<CodeCheckRequest>(text);
-    var codeCheckResults = await completionService.GetCodeCheckResults(codeCheckRequest);
-    await JsonSerializer.SerializeAsync(e.Response.Body, codeCheckResults);
+    return await completionService.GetHoverInformation(request);
+});
+
+app.MapPost("/completion/codeCheck", async ([FromBody] CodeCheckRequest request, ICompletionService completionService) =>
+{
+    return await completionService.GetCodeCheckResults(request);
 });
 
 app.UseFileServer();
