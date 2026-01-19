@@ -7,7 +7,7 @@ async function sendRequest(type, request) {
         case 'codeCheck': endPoint = '/completion/codeCheck'; break;
     }
     try {
-        return await axios.post(endPoint, JSON.stringify(request));
+        return await axios.post(endPoint, request);
     } catch (error) {
         console.warn(`Failed to perform request: ${type}`, error);
         return null;

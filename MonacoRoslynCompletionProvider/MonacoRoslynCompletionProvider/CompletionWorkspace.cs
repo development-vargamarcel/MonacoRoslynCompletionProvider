@@ -29,19 +29,23 @@ namespace MonacoRoslynCompletionProvider
         {
             try
             {
-                Assembly[] lst = new[] {
-                    Assembly.Load("Microsoft.CodeAnalysis.Workspaces"),
-                    Assembly.Load("Microsoft.CodeAnalysis.CSharp.Workspaces"),
-                    Assembly.Load("Microsoft.CodeAnalysis.Features"),
-                    Assembly.Load("Microsoft.CodeAnalysis.CSharp.Features")
+                var assemblyNames = new[]
+                {
+                    "Microsoft.CodeAnalysis.Workspaces",
+                    "Microsoft.CodeAnalysis.CSharp.Workspaces",
+                    "Microsoft.CodeAnalysis.Features",
+                    "Microsoft.CodeAnalysis.CSharp.Features"
                 };
 
-                _host = MefHostServices.Create(lst);
+                var assemblies = assemblyNames
+                    .Select(name => Assembly.Load(name))
+                    .ToArray();
+
+                _host = MefHostServices.Create(assemblies);
             }
             catch (Exception ex)
             {
                 _hostInitException = ex;
-                Console.WriteLine($"Error initializing HostServices: {ex}");
             }
         }
 
@@ -57,21 +61,7 @@ namespace MonacoRoslynCompletionProvider
             _workspace = new AdhocWorkspace(_host);
 
             var references = MetadataReferenceProvider.GetMetadataReferences();
-
-            if (assemblies != null && assemblies.Length > 0)
-            {
-                for (int i = 0; i < assemblies.Length; i++)
-                {
-                    try
-                    {
-                        references.Add(MetadataReference.CreateFromFile(assemblies[i]));
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogWarning(ex, "Failed to load reference {Assembly}", assemblies[i]);
-                    }
-                }
-            }
+            AddAdditionalReferences(assemblies, references);
 
             var projectInfo = ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(), "TempProject", "TempProject", LanguageNames.CSharp)
                 .WithMetadataReferences(references)
@@ -79,6 +69,23 @@ namespace MonacoRoslynCompletionProvider
                 .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
             _project = _workspace.AddProject(projectInfo);
+        }
+
+        private void AddAdditionalReferences(string[] assemblies, List<MetadataReference> references)
+        {
+            if (assemblies == null || assemblies.Length == 0) return;
+
+            foreach (var asm in assemblies)
+            {
+                try
+                {
+                    references.Add(MetadataReference.CreateFromFile(asm));
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Failed to load reference {Assembly}", asm);
+                }
+            }
         }
 
         public async Task<CompletionDocument> CreateDocument(string code, OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary, bool includeDiagnostics = false)
@@ -98,11 +105,7 @@ namespace MonacoRoslynCompletionProvider
             var st = await document.GetSyntaxTreeAsync();
             var semanticModel = compilation.GetSemanticModel(st, true);
 
-            var diagnostics = ImmutableArray<Diagnostic>.Empty;
-            if (includeDiagnostics)
-            {
-                diagnostics = compilation.GetDiagnostics();
-            }
+            var diagnostics = includeDiagnostics ? compilation.GetDiagnostics() : ImmutableArray<Diagnostic>.Empty;
 
             return new CompletionDocument(document, semanticModel, diagnostics);
         }

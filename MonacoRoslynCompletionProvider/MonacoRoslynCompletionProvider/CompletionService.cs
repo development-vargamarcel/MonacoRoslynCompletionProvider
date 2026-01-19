@@ -11,71 +11,67 @@ namespace MonacoRoslynCompletionProvider
     public class CompletionService : ICompletionService
     {
         private readonly ILogger<CompletionService> _logger;
-        // Cache workspaces to avoid expensive re-creation
-        private readonly ConcurrentDictionary<string, CompletionWorkspace> _workspaceCache = new ConcurrentDictionary<string, CompletionWorkspace>();
+        // Cache workspaces to avoid expensive re-creation.
+        // Note: For a real-world scenario with many different assembly combinations, use IMemoryCache with eviction.
+        private readonly ConcurrentDictionary<string, CompletionWorkspace> _workspaceCache = new();
 
         public CompletionService(ILogger<CompletionService> logger)
         {
             _logger = logger;
         }
 
-        public async Task<TabCompletionResult[]> GetTabCompletion(TabCompletionRequest request, CancellationToken cancellationToken = default)
+        public Task<TabCompletionResult[]> GetTabCompletion(TabCompletionRequest request, CancellationToken cancellationToken = default)
         {
-            return await ExecuteRequest(request, "TabCompletion", async (doc, token) =>
-                await doc.GetTabCompletion(request.Position, token),
+            return ExecuteRequest(request, "TabCompletion", (doc, token) => doc.GetTabCompletion(request.Position, token),
                 checkPosition: true, includeDiagnostics: false, cancellationToken);
         }
 
-        public async Task<HoverInfoResult> GetHoverInformation(HoverInfoRequest request, CancellationToken cancellationToken = default)
+        public Task<HoverInfoResult> GetHoverInformation(HoverInfoRequest request, CancellationToken cancellationToken = default)
         {
-            return await ExecuteRequest(request, "HoverInformation", async (doc, token) =>
-                await doc.GetHoverInformation(request.Position, token),
+            return ExecuteRequest(request, "HoverInformation", (doc, token) => doc.GetHoverInformation(request.Position, token),
                 checkPosition: true, includeDiagnostics: false, cancellationToken);
         }
 
-        public async Task<CodeCheckResult[]> GetCodeCheckResults(CodeCheckRequest request, CancellationToken cancellationToken = default)
+        public Task<CodeCheckResult[]> GetCodeCheckResults(CodeCheckRequest request, CancellationToken cancellationToken = default)
         {
-            return await ExecuteRequest(request, "CodeCheck", async (doc, token) =>
-                await doc.GetCodeCheckResults(token),
+            return ExecuteRequest(request, "CodeCheck", (doc, token) => doc.GetCodeCheckResults(token),
                 checkPosition: false, includeDiagnostics: true, cancellationToken);
         }
 
-        public async Task<SignatureHelpResult> GetSignatureHelp(SignatureHelpRequest request, CancellationToken cancellationToken = default)
+        public Task<SignatureHelpResult> GetSignatureHelp(SignatureHelpRequest request, CancellationToken cancellationToken = default)
         {
-            return await ExecuteRequest(request, "SignatureHelp", async (doc, token) =>
-                await doc.GetSignatureHelp(request.Position, token),
+            return ExecuteRequest(request, "SignatureHelp", (doc, token) => doc.GetSignatureHelp(request.Position, token),
                 checkPosition: true, includeDiagnostics: false, cancellationToken);
         }
 
         private async Task<TResult> ExecuteRequest<TResult>(IRequestWithCode request, string operationName, Func<CompletionDocument, CancellationToken, Task<TResult>> action, bool checkPosition, bool includeDiagnostics, CancellationToken cancellationToken)
         {
-            ValidateRequest(request, checkPosition);
             try
             {
+                ValidateRequest(request, checkPosition);
                 var document = await GetDocument(request, includeDiagnostics, cancellationToken);
                 return await action(document, cancellationToken);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error executing {OperationName}", operationName);
+                _logger.LogError(ex, "Error executing {OperationName}. Code length: {CodeLength}", operationName, request?.Code?.Length ?? 0);
                 throw;
             }
         }
 
-        private void ValidateRequest(IRequestWithCode request, bool checkPosition = true)
+        private void ValidateRequest(IRequestWithCode request, bool checkPosition)
         {
-            if (request == null)
-            {
-                throw new ArgumentNullException(nameof(request));
-            }
-
-            // request.Code can be empty
+            if (request == null) throw new ArgumentNullException(nameof(request));
 
             if (checkPosition && request is IRequestWithPosition posRequest)
             {
                  if (posRequest.Position < 0)
                  {
                      throw new ArgumentOutOfRangeException(nameof(posRequest.Position), "Position must be non-negative.");
+                 }
+                 if (request.Code != null && posRequest.Position > request.Code.Length)
+                 {
+                      throw new ArgumentOutOfRangeException(nameof(posRequest.Position), "Position is outside the code bounds.");
                  }
             }
         }
