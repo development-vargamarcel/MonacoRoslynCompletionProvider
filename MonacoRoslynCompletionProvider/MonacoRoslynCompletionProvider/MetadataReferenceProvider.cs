@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -11,7 +12,7 @@ namespace MonacoRoslynCompletionProvider
 {
     public static class MetadataReferenceProvider
     {
-        public static List<MetadataReference> GetMetadataReferences()
+        public static List<MetadataReference> GetMetadataReferences(ILogger logger = null)
         {
             var references = new List<MetadataReference>();
 
@@ -24,7 +25,14 @@ namespace MonacoRoslynCompletionProvider
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed to load metadata reference for {assemblyName}: {ex.Message}");
+                    if (logger != null)
+                    {
+                        logger.LogWarning(ex, "Failed to load metadata reference for {AssemblyName}", assemblyName);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Failed to load metadata reference for {assemblyName}: {ex.Message}");
+                    }
                 }
             }
 
@@ -36,7 +44,14 @@ namespace MonacoRoslynCompletionProvider
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed to load metadata reference for type {type.FullName}: {ex.Message}");
+                    if (logger != null)
+                    {
+                        logger.LogWarning(ex, "Failed to load metadata reference for type {TypeName}", type.FullName);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Failed to load metadata reference for type {type.FullName}: {ex.Message}");
+                    }
                 }
             }
 
