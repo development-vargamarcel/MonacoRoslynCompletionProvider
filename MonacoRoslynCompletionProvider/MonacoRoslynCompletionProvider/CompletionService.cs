@@ -8,7 +8,7 @@ using System.Linq;
 
 namespace MonacoRoslynCompletionProvider
 {
-    public class CompletionService : ICompletionService
+    public class CompletionService : ICompletionService, IDisposable
     {
         private readonly ILogger<CompletionService> _logger;
         // Cache workspaces to avoid expensive re-creation.
@@ -18,6 +18,15 @@ namespace MonacoRoslynCompletionProvider
         public CompletionService(ILogger<CompletionService> logger)
         {
             _logger = logger;
+        }
+
+        public void Dispose()
+        {
+            foreach (var workspace in _workspaceCache.Values)
+            {
+                workspace.Dispose();
+            }
+            _workspaceCache.Clear();
         }
 
         public Task<TabCompletionResult[]> GetTabCompletion(TabCompletionRequest request, CancellationToken cancellationToken = default)

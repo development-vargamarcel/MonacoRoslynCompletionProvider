@@ -32,33 +32,35 @@ function registerCsharpProvider() {
             let resultQ = await sendRequest("complete", request);
 
             if (resultQ && resultQ.data) {
+                const mapTagToKind = {
+                    'Class': monaco.languages.CompletionItemKind.Class,
+                    'Delegate': monaco.languages.CompletionItemKind.Function,
+                    'Enum': monaco.languages.CompletionItemKind.Enum,
+                    'EnumMember': monaco.languages.CompletionItemKind.EnumMember,
+                    'Event': monaco.languages.CompletionItemKind.Event,
+                    'ExtensionMethod': monaco.languages.CompletionItemKind.Method,
+                    'Field': monaco.languages.CompletionItemKind.Field,
+                    'Interface': monaco.languages.CompletionItemKind.Interface,
+                    'Keyword': monaco.languages.CompletionItemKind.Keyword,
+                    'Local': monaco.languages.CompletionItemKind.Variable,
+                    'Method': monaco.languages.CompletionItemKind.Method,
+                    'Module': monaco.languages.CompletionItemKind.Module,
+                    'Namespace': monaco.languages.CompletionItemKind.Module,
+                    'Operator': monaco.languages.CompletionItemKind.Operator,
+                    'Parameter': monaco.languages.CompletionItemKind.Variable,
+                    'Property': monaco.languages.CompletionItemKind.Property,
+                    'RangeVariable': monaco.languages.CompletionItemKind.Variable,
+                    'Reference': monaco.languages.CompletionItemKind.Reference,
+                    'Structure': monaco.languages.CompletionItemKind.Struct,
+                    'TypeParameter': monaco.languages.CompletionItemKind.TypeParameter,
+                    'Snippet': monaco.languages.CompletionItemKind.Snippet,
+                    'Constant': monaco.languages.CompletionItemKind.Constant
+                };
+
                 for (let elem of resultQ.data) {
                     let kind = monaco.languages.CompletionItemKind.Function;
-                    if (elem.Tag) {
-                        switch (elem.Tag) {
-                            case 'Class': kind = monaco.languages.CompletionItemKind.Class; break;
-                            case 'Delegate': kind = monaco.languages.CompletionItemKind.Function; break;
-                            case 'Enum': kind = monaco.languages.CompletionItemKind.Enum; break;
-                            case 'EnumMember': kind = monaco.languages.CompletionItemKind.EnumMember; break;
-                            case 'Event': kind = monaco.languages.CompletionItemKind.Event; break;
-                            case 'ExtensionMethod': kind = monaco.languages.CompletionItemKind.Method; break;
-                            case 'Field': kind = monaco.languages.CompletionItemKind.Field; break;
-                            case 'Interface': kind = monaco.languages.CompletionItemKind.Interface; break;
-                            case 'Keyword': kind = monaco.languages.CompletionItemKind.Keyword; break;
-                            case 'Local': kind = monaco.languages.CompletionItemKind.Variable; break;
-                            case 'Method': kind = monaco.languages.CompletionItemKind.Method; break;
-                            case 'Module': kind = monaco.languages.CompletionItemKind.Module; break;
-                            case 'Namespace': kind = monaco.languages.CompletionItemKind.Module; break;
-                            case 'Operator': kind = monaco.languages.CompletionItemKind.Operator; break;
-                            case 'Parameter': kind = monaco.languages.CompletionItemKind.Variable; break;
-                            case 'Property': kind = monaco.languages.CompletionItemKind.Property; break;
-                            case 'RangeVariable': kind = monaco.languages.CompletionItemKind.Variable; break;
-                            case 'Reference': kind = monaco.languages.CompletionItemKind.Reference; break;
-                            case 'Structure': kind = monaco.languages.CompletionItemKind.Struct; break;
-                            case 'TypeParameter': kind = monaco.languages.CompletionItemKind.TypeParameter; break;
-                            case 'Snippet': kind = monaco.languages.CompletionItemKind.Snippet; break;
-                            case 'Constant': kind = monaco.languages.CompletionItemKind.Constant; break;
-                        }
+                    if (elem.Tag && mapTagToKind[elem.Tag]) {
+                        kind = mapTagToKind[elem.Tag];
                     }
                     suggestions.push({
                         label: {
