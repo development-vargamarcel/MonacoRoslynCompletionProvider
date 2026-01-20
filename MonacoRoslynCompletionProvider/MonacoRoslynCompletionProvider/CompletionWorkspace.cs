@@ -60,7 +60,7 @@ namespace MonacoRoslynCompletionProvider
 
             _workspace = new AdhocWorkspace(_host);
 
-            var references = MetadataReferenceProvider.GetMetadataReferences();
+            var references = MetadataReferenceProvider.GetMetadataReferences(_logger);
             AddAdditionalReferences(assemblies, references);
 
             var projectInfo = ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(), "TempProject", "TempProject", LanguageNames.CSharp)

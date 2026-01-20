@@ -14,9 +14,7 @@ async function sendRequest(type, request) {
     }
 }
 
-function registerCsharpProvider() {
-
-    var assemblies = [];
+function registerCsharpProvider(assemblies = []) {
 
     monaco.languages.registerCompletionItemProvider('csharp', {
         triggerCharacters: [".", " "],
