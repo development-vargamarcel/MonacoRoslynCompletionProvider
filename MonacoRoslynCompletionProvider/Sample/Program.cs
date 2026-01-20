@@ -33,6 +33,11 @@ app.MapPost("/completion/complete", async ([FromBody] TabCompletionRequest reque
     return await completionService.GetTabCompletion(request);
 });
 
+app.MapPost("/completion/resolve", async ([FromBody] CompletionResolveRequest request, ICompletionService completionService) =>
+{
+    return await completionService.GetCompletionResolve(request);
+});
+
 app.MapPost("/completion/signature", async ([FromBody] SignatureHelpRequest request, ICompletionService completionService) =>
 {
     return await completionService.GetSignatureHelp(request);

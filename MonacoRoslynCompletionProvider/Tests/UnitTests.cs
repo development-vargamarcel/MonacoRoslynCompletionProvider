@@ -152,5 +152,40 @@ class Program {
              var results = await _completionService.GetTabCompletion(request);
              Assert.IsNotNull(results);
         }
+
+        [TestMethod]
+        public async Task CompletionResolveTest()
+        {
+            var code = @"using System;
+
+namespace ConsoleApp1
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.
+        }
+    }
+}";
+            int pos = code.IndexOf("Console.") + "Console.".Length;
+
+            // 1. Get List (Should not have description)
+            var request = new TabCompletionRequest() { Code = code, Position = pos, Assemblies = Array.Empty<string>() };
+            var results = await _completionService.GetTabCompletion(request);
+            var writeLine = results.FirstOrDefault(r => r.Suggestion == "WriteLine");
+
+            Assert.IsNotNull(writeLine);
+            Assert.IsNull(writeLine.Description, "Description should be null initially");
+
+            // 2. Resolve Description
+            var resolveRequest = new CompletionResolveRequest() { Code = code, Position = pos, Assemblies = Array.Empty<string>(), Suggestion = "WriteLine" };
+            var resolved = await _completionService.GetCompletionResolve(resolveRequest);
+
+            Assert.IsNotNull(resolved);
+            Assert.AreEqual("WriteLine", resolved.Suggestion);
+            Assert.IsNotNull(resolved.Description, "Description should be populated after resolve");
+            Assert.IsTrue(resolved.Description.Contains("void Console.WriteLine("));
+        }
     }
 }
