@@ -7,12 +7,30 @@
     <title>Monaco Roslyn C# Code Completion Sample</title>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link rel="stylesheet" href="style.css">
+    <!-- Add FontAwesome or similar for icons if needed, but keeping it simple for now -->
 </head>
 <body>
     <header>
         <h2>Monaco Editor Sample</h2>
+        <button id="theme-toggle" class="btn">Dark Mode</button>
     </header>
+
     <div id="container"></div>
+
+    <footer id="status-bar">
+        <div class="status-item">
+            <span id="loading-indicator" style="display:none;">
+                <span class="spinner"></span> Processing...
+            </span>
+        </div>
+        <div class="spacer"></div>
+        <div class="status-item" id="validation-status">
+            <span>Ready</span>
+        </div>
+        <div class="status-item" id="cursor-position">
+            Ln 1, Col 1
+        </div>
+    </footer>
 
     <script src="csharpLanguageProvider.js"></script>
     <script src="node_modules/monaco-editor/min/vs/loader.js"></script>
@@ -21,17 +39,72 @@
 
         require(['vs/editor/editor.main'], function () {
 
-            registerCsharpProvider();
+            // Initialize the provider
+            const provider = registerCsharpProvider();
 
             var editor = monaco.editor.create(document.getElementById('container'), {
                 value: "using System;\n\npublic class MyClass\n{\n\tpublic static void MyMethod(int value)\n\t{\n\t\tGuid.\n\t}\n}",
                 language: 'csharp',
-                theme: 'vs-light'
+                theme: 'vs-light',
+                automaticLayout: true // Use automatic layout instead of manual resize listener
             });
 
-             window.addEventListener('resize', function () {
-                editor.layout();
+            // --- UX Implementation ---
+
+            // Theme Toggle
+            const themeToggleBtn = document.getElementById('theme-toggle');
+            themeToggleBtn.addEventListener('click', () => {
+                if (themeToggleBtn.innerText === 'Dark Mode') {
+                    monaco.editor.setTheme('vs-dark');
+                    document.body.classList.add('dark-theme');
+                    themeToggleBtn.innerText = 'Light Mode';
+                } else {
+                    monaco.editor.setTheme('vs-light');
+                    document.body.classList.remove('dark-theme');
+                    themeToggleBtn.innerText = 'Dark Mode';
+                }
             });
+
+            // Cursor Position
+            editor.onDidChangeCursorPosition((e) => {
+                document.getElementById('cursor-position').innerText =
+                    `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+            });
+
+            // Hook into Provider Events
+            const loadingIndicator = document.getElementById('loading-indicator');
+            provider.onLoading = (isLoading) => {
+                loadingIndicator.style.display = isLoading ? 'inline-block' : 'none';
+            };
+
+            const validationStatus = document.getElementById('validation-status');
+
+            provider.onError = (message) => {
+                validationStatus.innerText = message;
+                validationStatus.classList.add('has-issues');
+                // Auto-clear after 5 seconds if no new validation comes in
+                setTimeout(() => {
+                    if (validationStatus.innerText === message) {
+                        validationStatus.innerText = "Ready";
+                        validationStatus.classList.remove('has-issues');
+                    }
+                }, 5000);
+            };
+
+            provider.onValidationComplete = (markers) => {
+                const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error).length;
+                const warnings = markers.filter(m => m.severity === monaco.MarkerSeverity.Warning).length;
+
+                let text = "No Issues";
+                if (errors > 0 || warnings > 0) {
+                    text = `${errors} Errors, ${warnings} Warnings`;
+                    validationStatus.classList.add('has-issues');
+                } else {
+                    validationStatus.classList.remove('has-issues');
+                }
+                validationStatus.innerText = text;
+            };
+
         });
     </script>
 </body>
