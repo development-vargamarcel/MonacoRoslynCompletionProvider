@@ -2,6 +2,7 @@ async function sendRequest(type, request) {
     let endPoint;
     switch (type) {
         case 'complete': endPoint = '/completion/complete'; break;
+        case 'resolve': endPoint = '/completion/resolve'; break;
         case 'signature': endPoint = '/completion/signature'; break;
         case 'hover': endPoint = '/completion/hover'; break;
         case 'codeCheck': endPoint = '/completion/codeCheck'; break;
@@ -66,12 +67,51 @@ function registerCsharpProvider(assemblies = []) {
                             description: elem.Description
                         },
                         kind: kind,
-                        insertText: elem.Suggestion
+                        insertText: elem.Suggestion,
+                        // Store context for resolve
+                        _roslynContext: {
+                            Code: request.Code,
+                            Position: request.Position,
+                            Assemblies: assemblies,
+                            Suggestion: elem.Suggestion
+                        }
                     });
                 }
             }
 
             return { suggestions: suggestions };
+        },
+
+        resolveCompletionItem: async (item, token) => {
+            let context = item._roslynContext;
+            if (!context) return item;
+
+            let request = {
+                Code: context.Code,
+                Position: context.Position,
+                Assemblies: context.Assemblies,
+                Suggestion: context.Suggestion
+            };
+
+            let resultQ = await sendRequest("resolve", request);
+
+            if (resultQ && resultQ.data && resultQ.data.Description) {
+                // Update the description
+                // Note: Monaco requires a new object or mutation of the label object
+                if (typeof item.label === 'string') {
+                    item.label = {
+                        label: item.label,
+                        description: resultQ.data.Description
+                    };
+                } else {
+                    item.label.description = resultQ.data.Description;
+                }
+
+                // Also adding to documentation as it provides more space
+                item.documentation = resultQ.data.Description;
+            }
+
+            return item;
         }
     });
 

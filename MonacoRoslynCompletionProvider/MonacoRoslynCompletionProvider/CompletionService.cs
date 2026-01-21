@@ -35,6 +35,12 @@ namespace MonacoRoslynCompletionProvider
                 checkPosition: true, includeDiagnostics: false, cancellationToken);
         }
 
+        public Task<TabCompletionResult> GetCompletionResolve(CompletionResolveRequest request, CancellationToken cancellationToken = default)
+        {
+            return ExecuteRequest(request, "CompletionResolve", (doc, token) => doc.GetCompletionResolve(request.Position, request.Suggestion, token),
+                checkPosition: true, includeDiagnostics: false, cancellationToken);
+        }
+
         public Task<HoverInfoResult> GetHoverInformation(HoverInfoRequest request, CancellationToken cancellationToken = default)
         {
             return ExecuteRequest(request, "HoverInformation", (doc, token) => doc.GetHoverInformation(request.Position, token),

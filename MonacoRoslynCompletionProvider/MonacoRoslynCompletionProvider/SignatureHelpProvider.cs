@@ -1,9 +1,11 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MonacoRoslynCompletionProvider.Api;
+using MonacoRoslynCompletionProvider.Logic;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MonacoRoslynCompletionProvider
@@ -13,9 +15,9 @@ namespace MonacoRoslynCompletionProvider
     /// </summary>
     internal static class SignatureHelpProvider
     {
-        public static async Task<SignatureHelpResult> Provide(Document document, int position, SemanticModel semanticModel)
+        public static async Task<SignatureHelpResult> Provide(Document document, int position, SemanticModel semanticModel, CancellationToken cancellationToken)
         {
-            var invocation = await InvocationContext.GetInvocation(document, position);
+            var invocation = await InvocationContext.GetInvocation(document, position, cancellationToken);
             if (invocation == null) return null;
 
             int activeParameter = 0;
@@ -40,7 +42,7 @@ namespace MonacoRoslynCompletionProvider
             if (invocation.Receiver is MemberAccessExpressionSyntax memberAccess)
             {
                 var throughExpression = memberAccess.Expression;
-                var typeInfo = semanticModel.GetTypeInfo(throughExpression);
+                var typeInfo = semanticModel.GetTypeInfo(throughExpression, cancellationToken);
                 throughSymbol = invocation.SemanticModel.GetSpeculativeSymbolInfo(invocation.Position, throughExpression, SpeculativeBindingOption.BindAsExpression).Symbol;
                 throughType = invocation.SemanticModel.GetSpeculativeTypeInfo(invocation.Position, throughExpression, SpeculativeBindingOption.BindAsTypeOrNamespace).Type;
 
@@ -64,7 +66,8 @@ namespace MonacoRoslynCompletionProvider
 
             foreach (var methodOverload in methodGroup)
             {
-                var signature = BuildSignature(methodOverload);
+                cancellationToken.ThrowIfCancellationRequested();
+                var signature = BuildSignature(methodOverload, cancellationToken);
 
                 // If we don't have this signature yet, add it.
                 if (!signaturesMap.ContainsKey(signature.Label))
@@ -93,7 +96,7 @@ namespace MonacoRoslynCompletionProvider
             };
         }
 
-        private static Signatures BuildSignature(IMethodSymbol symbol)
+        private static Signatures BuildSignature(IMethodSymbol symbol, CancellationToken cancellationToken)
         {
             var parameters = new List<Parameter>();
             foreach (var parameter in symbol.Parameters)
@@ -102,7 +105,7 @@ namespace MonacoRoslynCompletionProvider
             };
             var signature = new Signatures
             {
-                Documentation = symbol.GetDocumentationCommentXml(),
+                Documentation = symbol.GetDocumentationCommentXml(cancellationToken: cancellationToken),
                 Label = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
                 Parameters = parameters.ToArray()
             };

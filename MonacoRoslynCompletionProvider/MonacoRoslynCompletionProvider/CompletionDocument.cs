@@ -22,12 +22,17 @@ namespace MonacoRoslynCompletionProvider
 
         public Task<HoverInfoResult> GetHoverInformation(int position, CancellationToken cancellationToken)
         {
-            return HoverInformationProvider.Provide(Document, position, SemanticModel);
+            return HoverInformationProvider.Provide(Document, position, SemanticModel, cancellationToken);
         }
 
         public Task<TabCompletionResult[]> GetTabCompletion(int position, CancellationToken cancellationToken)
         {
-            return TabCompletionProvider.Provide(Document, position);
+            return TabCompletionProvider.Provide(Document, position, cancellationToken);
+        }
+
+        public Task<TabCompletionResult> GetCompletionResolve(int position, string suggestion, CancellationToken cancellationToken)
+        {
+            return TabCompletionProvider.ProvideDescription(Document, position, suggestion, cancellationToken);
         }
 
         public async Task<CodeCheckResult[]> GetCodeCheckResults(CancellationToken cancellationToken)
@@ -37,7 +42,7 @@ namespace MonacoRoslynCompletionProvider
 
         public Task<SignatureHelpResult> GetSignatureHelp(int position, CancellationToken cancellationToken)
         {
-            return SignatureHelpProvider.Provide(Document, position, SemanticModel);
+            return SignatureHelpProvider.Provide(Document, position, SemanticModel, cancellationToken);
         }
     }
 }
