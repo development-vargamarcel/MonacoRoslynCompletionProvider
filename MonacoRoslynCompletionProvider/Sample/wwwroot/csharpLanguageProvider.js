@@ -99,22 +99,22 @@ class CSharpLanguageProvider {
         if (resultQ && resultQ.data) {
             for (let elem of resultQ.data) {
                 let kind = monaco.languages.CompletionItemKind.Function;
-                if (elem.Tag && this.mapTagToKind[elem.Tag]) {
-                    kind = this.mapTagToKind[elem.Tag];
+                if (elem.tag && this.mapTagToKind[elem.tag]) {
+                    kind = this.mapTagToKind[elem.tag];
                 }
                 suggestions.push({
                     label: {
-                        label: elem.Suggestion,
-                        description: elem.Description
+                        label: elem.suggestion,
+                        description: elem.description || ""
                     },
                     kind: kind,
-                    insertText: elem.Suggestion,
+                    insertText: elem.suggestion,
                     // Store context for resolve
                     _roslynContext: {
                         Code: request.Code,
                         Position: request.Position,
                         Assemblies: this.assemblies,
-                        Suggestion: elem.Suggestion
+                        Suggestion: elem.suggestion
                     }
                 });
             }
@@ -136,16 +136,16 @@ class CSharpLanguageProvider {
 
         let resultQ = await this.sendRequest("resolve", request);
 
-        if (resultQ && resultQ.data && resultQ.data.Description) {
+        if (resultQ && resultQ.data && resultQ.data.description) {
             if (typeof item.label === 'string') {
                 item.label = {
                     label: item.label,
-                    description: resultQ.data.Description
+                    description: resultQ.data.description
                 };
             } else {
-                item.label.description = resultQ.data.Description;
+                item.label.description = resultQ.data.description;
             }
-            item.documentation = resultQ.data.Description;
+            item.documentation = resultQ.data.description;
         }
 
         return item;
@@ -162,27 +162,31 @@ class CSharpLanguageProvider {
         if (!resultQ || !resultQ.data) return;
 
         let signatures = [];
-        for (let signature of resultQ.data.Signatures) {
-            let params = [];
-            for (let param of signature.Parameters) {
-                params.push({
-                    label: param.Label,
-                    documentation: param.Documentation ?? ""
+        if (resultQ.data.signatures) {
+            for (let signature of resultQ.data.signatures) {
+                let params = [];
+                if (signature.parameters) {
+                    for (let param of signature.parameters) {
+                        params.push({
+                            label: param.label,
+                            documentation: param.documentation ?? ""
+                        });
+                    }
+                }
+
+                signatures.push({
+                    label: signature.label,
+                    documentation: signature.documentation ?? "",
+                    parameters: params,
                 });
             }
-
-            signatures.push({
-                label: signature.Label,
-                documentation: signature.Documentation ?? "",
-                parameters: params,
-            });
         }
 
         return {
             value: {
                 signatures: signatures,
-                activeParameter: resultQ.data.ActiveParameter,
-                activeSignature: resultQ.data.ActiveSignature
+                activeParameter: resultQ.data.activeParameter,
+                activeSignature: resultQ.data.activeSignature
             },
             dispose: () => { }
         };
@@ -198,13 +202,13 @@ class CSharpLanguageProvider {
         let resultQ = await this.sendRequest("hover", request);
 
         if (resultQ && resultQ.data) {
-            let posStart = model.getPositionAt(resultQ.data.OffsetFrom);
-            let posEnd = model.getPositionAt(resultQ.data.OffsetTo);
+            let posStart = model.getPositionAt(resultQ.data.offsetFrom);
+            let posEnd = model.getPositionAt(resultQ.data.offsetTo);
 
             return {
                 range: new monaco.Range(posStart.lineNumber, posStart.column, posEnd.lineNumber, posEnd.column),
                 contents: [
-                    { value: resultQ.data.Information }
+                    { value: resultQ.data.information }
                 ]
             };
         }
@@ -224,16 +228,16 @@ class CSharpLanguageProvider {
             let markers = [];
             if (resultQ && resultQ.data) {
                 for (let elem of resultQ.data) {
-                    let posStart = model.getPositionAt(elem.OffsetFrom);
-                    let posEnd = model.getPositionAt(elem.OffsetTo);
+                    let posStart = model.getPositionAt(elem.offsetFrom);
+                    let posEnd = model.getPositionAt(elem.offsetTo);
                     markers.push({
-                        severity: elem.Severity, // Ensure this maps correctly to Monaco severity
+                        severity: elem.severity, // Ensure this maps correctly to Monaco severity
                         startLineNumber: posStart.lineNumber,
                         startColumn: posStart.column,
                         endLineNumber: posEnd.lineNumber,
                         endColumn: posEnd.column,
-                        message: elem.Message,
-                        code: elem.Id
+                        message: elem.message,
+                        code: elem.id
                     });
                 }
             }
