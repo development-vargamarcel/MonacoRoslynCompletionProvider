@@ -1,3 +1,7 @@
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     padding: 0;
@@ -76,6 +80,9 @@ body.dark-theme #status-bar {
     margin-right: 15px;
     display: flex;
     align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .status-item.has-issues {
@@ -100,4 +107,26 @@ body.dark-theme #status-bar {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+@media (max-width: 600px) {
+    header {
+        padding: 5px 10px;
+    }
+
+    header h2 {
+        font-size: 1rem;
+    }
+
+    .btn {
+        padding: 8px 12px;
+    }
+
+    #cursor-position {
+        display: none;
+    }
+
+    .status-item {
+        font-size: 0.75rem;
+    }
 }
