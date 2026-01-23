@@ -1,5 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Emit;
+using Microsoft.CodeAnalysis.Text;
 using MonacoRoslynCompletionProvider.Api;
 using System.Collections.Immutable;
 using System.Threading;
@@ -43,6 +44,26 @@ namespace MonacoRoslynCompletionProvider
         public Task<SignatureHelpResult> GetSignatureHelp(int position, CancellationToken cancellationToken)
         {
             return SignatureHelpProvider.Provide(Document, position, SemanticModel, cancellationToken);
+        }
+
+        public Task<CodeActionResult[]> GetCodeFormatting(CodeFormatRequest request, CancellationToken cancellationToken)
+        {
+            TextSpan? span = null;
+            if (request.Start > 0 || request.End > 0)
+            {
+                span = TextSpan.FromBounds(request.Start, request.End);
+            }
+            return CodeFormatProvider.Provide(Document, span, cancellationToken);
+        }
+
+        public Task<GoToDefinitionResult> GetGoToDefinition(int position, CancellationToken cancellationToken)
+        {
+            return GoToDefinitionProvider.Provide(Document, position, cancellationToken);
+        }
+
+        public Task<CodeActionResult> GetRename(int position, string newName, CancellationToken cancellationToken)
+        {
+            return RenameProvider.Provide(Document, position, newName, cancellationToken);
         }
     }
 }
