@@ -59,6 +59,24 @@ namespace MonacoRoslynCompletionProvider
                 checkPosition: true, includeDiagnostics: false, cancellationToken);
         }
 
+        public Task<CodeActionResult[]> GetCodeFormatting(CodeFormatRequest request, CancellationToken cancellationToken = default)
+        {
+            return ExecuteRequest(request, "CodeFormat", (doc, token) => doc.GetCodeFormatting(request, token),
+                checkPosition: false, includeDiagnostics: false, cancellationToken);
+        }
+
+        public Task<GoToDefinitionResult> GetGoToDefinition(GoToDefinitionRequest request, CancellationToken cancellationToken = default)
+        {
+            return ExecuteRequest(request, "GoToDefinition", (doc, token) => doc.GetGoToDefinition(request.Position, token),
+                checkPosition: true, includeDiagnostics: false, cancellationToken);
+        }
+
+        public Task<CodeActionResult> GetRename(RenameRequest request, CancellationToken cancellationToken = default)
+        {
+            return ExecuteRequest(request, "Rename", (doc, token) => doc.GetRename(request.Position, request.NewName, token),
+                checkPosition: true, includeDiagnostics: false, cancellationToken);
+        }
+
         private async Task<TResult> ExecuteRequest<TResult>(IRequestWithCode request, string operationName, Func<CompletionDocument, CancellationToken, Task<TResult>> action, bool checkPosition, bool includeDiagnostics, CancellationToken cancellationToken)
         {
             try

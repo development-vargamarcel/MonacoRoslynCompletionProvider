@@ -53,6 +53,21 @@ app.MapPost("/completion/codeCheck", async ([FromBody] CodeCheckRequest request,
     return await completionService.GetCodeCheckResults(request);
 });
 
+app.MapPost("/completion/format", async ([FromBody] CodeFormatRequest request, ICompletionService completionService) =>
+{
+    return await completionService.GetCodeFormatting(request);
+});
+
+app.MapPost("/completion/definition", async ([FromBody] GoToDefinitionRequest request, ICompletionService completionService) =>
+{
+    return await completionService.GetGoToDefinition(request);
+});
+
+app.MapPost("/completion/rename", async ([FromBody] RenameRequest request, ICompletionService completionService) =>
+{
+    return await completionService.GetRename(request);
+});
+
 app.UseFileServer();
 
 app.Run();

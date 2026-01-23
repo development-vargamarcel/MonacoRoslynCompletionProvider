@@ -82,7 +82,139 @@ class CSharpLanguageProvider {
             provideHover: (model, position) => this.provideHover(model, position)
         });
 
+        monaco.languages.registerDocumentFormattingEditProvider('csharp', {
+            provideDocumentFormattingEdits: (model, options, token) => this.provideDocumentFormattingEdits(model, options, token)
+        });
+
+        monaco.languages.registerDocumentRangeFormattingEditProvider('csharp', {
+            provideDocumentRangeFormattingEdits: (model, range, options, token) => this.provideDocumentRangeFormattingEdits(model, range, options, token)
+        });
+
+        monaco.languages.registerDefinitionProvider('csharp', {
+            provideDefinition: (model, position, token) => this.provideDefinition(model, position, token)
+        });
+
+        monaco.languages.registerRenameProvider('csharp', {
+            provideRenameEdits: (model, position, newName, token) => this.provideRenameEdits(model, position, newName, token)
+        });
+
         monaco.editor.onDidCreateModel((model) => this.setupValidation(model));
+    }
+
+    async provideRenameEdits(model, position, newName, token) {
+        let request = {
+            Code: model.getValue(),
+            Position: model.getOffsetAt(position),
+            NewName: newName,
+            Assemblies: this.assemblies
+        };
+
+        let resultQ = await this.sendRequest("rename", request);
+
+        if (resultQ && resultQ.data && resultQ.data.changesInDocument) {
+            let edits = [];
+            for (let change of resultQ.data.changesInDocument) {
+                let posStart = model.getPositionAt(change.offsetFrom);
+                let posEnd = model.getPositionAt(change.offsetTo);
+                edits.push({
+                    resource: model.uri,
+                    versionId: model.getVersionId(),
+                    textEdit: {
+                        range: {
+                            startLineNumber: posStart.lineNumber,
+                            startColumn: posStart.column,
+                            endLineNumber: posEnd.lineNumber,
+                            endColumn: posEnd.column
+                        },
+                        text: change.newText
+                    }
+                });
+            }
+
+            return {
+                edits: edits
+            };
+        }
+
+        return {
+            edits: []
+        };
+    }
+
+    async provideDefinition(model, position, token) {
+        let request = {
+            Code: model.getValue(),
+            Position: model.getOffsetAt(position),
+            Assemblies: this.assemblies
+        };
+
+        let resultQ = await this.sendRequest("definition", request);
+
+        if (resultQ && resultQ.data && resultQ.data.definitions) {
+            let definitions = [];
+            for (let def of resultQ.data.definitions) {
+                let posStart = model.getPositionAt(def.offsetFrom);
+                let posEnd = model.getPositionAt(def.offsetTo);
+                definitions.push({
+                    uri: model.uri, // Assuming definitions are in the same file for now
+                    range: {
+                        startLineNumber: posStart.lineNumber,
+                        startColumn: posStart.column,
+                        endLineNumber: posEnd.lineNumber,
+                        endColumn: posEnd.column
+                    }
+                });
+            }
+            return definitions;
+        }
+
+        return [];
+    }
+
+    async provideDocumentFormattingEdits(model, options, token) {
+        let request = {
+            Code: model.getValue(),
+            Assemblies: this.assemblies
+        };
+
+        let resultQ = await this.sendRequest("format", request);
+        return this.mapFormatEdits(model, resultQ);
+    }
+
+    async provideDocumentRangeFormattingEdits(model, range, options, token) {
+        let request = {
+            Code: model.getValue(),
+            Start: model.getOffsetAt(range.getStartPosition()),
+            End: model.getOffsetAt(range.getEndPosition()),
+            Assemblies: this.assemblies
+        };
+
+        let resultQ = await this.sendRequest("format", request);
+        return this.mapFormatEdits(model, resultQ);
+    }
+
+    mapFormatEdits(model, resultQ) {
+        if (resultQ && resultQ.data && resultQ.data.length > 0) {
+            let elem = resultQ.data[0]; // Format document usually returns one 'CodeActionResult' with multiple changes
+            if (elem.changesInDocument) {
+                let edits = [];
+                for (let change of elem.changesInDocument) {
+                    let posStart = model.getPositionAt(change.offsetFrom);
+                    let posEnd = model.getPositionAt(change.offsetTo);
+                    edits.push({
+                        range: {
+                            startLineNumber: posStart.lineNumber,
+                            startColumn: posStart.column,
+                            endLineNumber: posEnd.lineNumber,
+                            endColumn: posEnd.column
+                        },
+                        text: change.newText
+                    });
+                }
+                return edits;
+            }
+        }
+        return [];
     }
 
     async provideCompletionItems(model, position) {

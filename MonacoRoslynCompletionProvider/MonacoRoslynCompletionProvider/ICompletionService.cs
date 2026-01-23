@@ -11,5 +11,8 @@ namespace MonacoRoslynCompletionProvider
         Task<HoverInfoResult> GetHoverInformation(HoverInfoRequest request, CancellationToken cancellationToken = default);
         Task<CodeCheckResult[]> GetCodeCheckResults(CodeCheckRequest request, CancellationToken cancellationToken = default);
         Task<SignatureHelpResult> GetSignatureHelp(SignatureHelpRequest request, CancellationToken cancellationToken = default);
+        Task<CodeActionResult[]> GetCodeFormatting(CodeFormatRequest request, CancellationToken cancellationToken = default);
+        Task<GoToDefinitionResult> GetGoToDefinition(GoToDefinitionRequest request, CancellationToken cancellationToken = default);
+        Task<CodeActionResult> GetRename(RenameRequest request, CancellationToken cancellationToken = default);
     }
 }
